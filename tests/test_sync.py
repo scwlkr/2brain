@@ -138,7 +138,8 @@ class Synchronization(Scenario):
     def test_unrelated_histories_are_not_forced_together(self):
         left, _, remote = self.pair()
         unrelated = self.root / "unrelated"
-        self.call(unrelated, "init")
+        # Same-second identical initial commits would otherwise share a root.
+        self.call(unrelated, "init", env={"GIT_AUTHOR_NAME": "Independent history fixture"})
         self.call(unrelated, "remote", str(remote))
         before = self.git(unrelated, "rev-parse", "HEAD")
         self.call(unrelated, "sync", expect=1)
