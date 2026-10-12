@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+"""Small local check/build entry point; no hosted CI or dependencies."""
+
+import argparse
+import os
+import subprocess
+import sys
+import tempfile
+import zipapp
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+
+
+def build(destination):
+    destination = destination.expanduser().absolute()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="2brain-build-") as temporary:
+        staging = Path(temporary)
+        package = staging / "twobrain"
+        package.mkdir()
+        for source in (ROOT / "src/twobrain").glob("*.py"):
+            (package / source.name).write_bytes(source.read_bytes())
+        zipapp.create_archive(staging, target=destination, interpreter="/usr/bin/env python3",
+                              main="twobrain.cli:main", compressed=True)
+    print(destination)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("action", choices=["check", "test", "build"])
+    parser.add_argument("--output", type=Path, default=ROOT / "dist/2brain.pyz")
+    args = parser.parse_args()
+    if args.action in {"check", "test"}:
+        env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+        result = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"], cwd=ROOT, env=env)
+        if result.returncode:
+            return result.returncode
+    if args.action in {"check", "build"}:
+        build(args.output)
+        subprocess.run([sys.executable, str(args.output), "--version"], check=True)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
