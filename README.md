@@ -16,7 +16,7 @@ Use your existing Git/GitHub authentication. No credentials belong in records or
 With [uv](https://docs.astral.sh/uv/guides/tools/) installed, setup is two commands on macOS, Windows or Linux:
 
 ```sh
-uv tool install "git+https://github.com/scwlkr/2brain@v0.1.1"
+uv tool install "git+https://github.com/scwlkr/2brain@stable"
 2brain setup scwlkr/2brain-context --codex
 ```
 
@@ -28,9 +28,25 @@ If uv reports its executable directory is missing from PATH, run `uv tool update
 
 `--codex` explicitly replaces global Codex personalization with only the short 2brain loader. It saves exact previous `AGENTS.md` and `AGENTS.override.md` bytes under the Codex home's inactive `2brain-backups/` directory, then removes the active override so the loader is used. It honors `CODEX_HOME`. Repeating setup makes no extra backup when the loader is already installed. Without `--codex`, agent instructions are untouched. Failed context initialization leaves agent instructions untouched.
 
-Installation is a normal package install; it never clones personalization or edits agent instructions as an install hook. Personalization stays in its separate private repository and local data copy. The versioned Git URL selects the release deliberately; use the full commit SHA in place of `v0.1.1` when you require an immutable source pin. Git credential-helper behavior is documented by [uv](https://docs.astral.sh/uv/concepts/authentication/git/).
+Installation is a normal package install; it never clones personalization or edits agent instructions as an install hook. Personalization stays in its separate private repository and local data copy. The `stable` branch advances only to published releases, so updates do not require a new URL. Git credential-helper behavior is documented by [uv](https://docs.astral.sh/uv/concepts/authentication/git/).
 
-To uninstall the CLI: `uv tool uninstall twobrain-cli`. Your context/history and Codex instruction backups remain available. For a release upgrade, install that release's versioned Git URL. Context changes use `2brain sync` separately.
+To update an existing installation from a tag or commit pin, switch to `stable` once:
+
+```sh
+uv tool install --force "git+https://github.com/scwlkr/2brain@stable"
+2brain --version
+```
+
+For subsequent releases:
+
+```sh
+uv tool upgrade twobrain-cli
+2brain --version
+```
+
+These commands update the CLI. Run `2brain sync` to exchange personalization changes with your other computers. Updating the CLI preserves local context, pending edits, history, and agent instructions. `twobrain-cli` is the package name; `2brain` is its executable.
+
+To select a specific release, use `uv tool install --force "git+https://github.com/scwlkr/2brain@v0.1.2"`. A tag or full commit SHA stays pinned when running `uv tool upgrade`; re-install with a different tag or `stable` to change it. To uninstall the CLI: `uv tool uninstall twobrain-cli`. Your context/history and Codex instruction backups remain available. Maintainers follow [RELEASING.md](RELEASING.md) to publish versions and advance `stable`.
 
 Advanced source installation remains available: run `python3 install.py --prefix ~/.local` from a clone on macOS/Linux, or `py -3 install.py --prefix "$env:LOCALAPPDATA\2brain-cli"` on Windows and add the resulting `bin` directory to PATH. You can also run `python3 2brain` directly, build a standalone archive with `python3 project build`, or install with `python3 -m pip install .`.
 
