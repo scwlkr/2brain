@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from . import __version__, operations
+from .edit import edit
 from .errors import BrainError
 from .gitrepo import lock, remote, require_repository, status, sync
 from .records import default_home, discover, read_record, select
@@ -48,6 +49,9 @@ def parser():
     selectors(put, True)
     put.add_argument("--file", required=True, help="UTF-8 JSON file, or - for stdin")
     put.add_argument("--reason", required=True, help="the user's request or lasting preference")
+    editor = actions.add_parser("edit", help="edit one record in VS Code, validate and save locally")
+    selectors(editor, True)
+    editor.add_argument("--reason", help="history reason; defaults to edited <scope> guidance")
     remove = actions.add_parser("remove", help="remove one record with history")
     selectors(remove, True)
     remove.add_argument("--reason", required=True)
@@ -97,7 +101,7 @@ def run(root, args):
         return query(root, args)
     if args.list:
         raise BrainError("Use --list by itself.")
-    if args.action not in {"put", "remove", "history"} and (args.tool or args.project):
+    if args.action not in {"put", "edit", "remove", "history"} and (args.tool or args.project):
         raise BrainError("Tool/project selectors do not apply to this action.")
     if args.action == "init":
         return operations.initialize(root, args.remote, args.seed.expanduser().absolute() if args.seed else None)
@@ -112,6 +116,8 @@ def run(root, args):
         return operations.history(root, args.limit, kind if scoped else None, name)
     if args.action == "status":
         return status(root)
+    if args.action == "edit":
+        return edit(root, kind, name, args.reason)
     with lock(root):
         if args.action == "sync":
             return sync(root)

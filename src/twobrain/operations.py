@@ -65,7 +65,7 @@ def put(root, kind, name, source, reason):
     validate_all(root)
     check_files(root)
     write_record(safe_path(root, relative), value)
-    revision = commit(root, f"update {relative.as_posix()}: {reason}")
+    revision = commit(root, f"update {relative.as_posix()}: {reason}", relative)
     return {"message": f"Saved {relative.as_posix()} locally.", "revision": revision}
 
 

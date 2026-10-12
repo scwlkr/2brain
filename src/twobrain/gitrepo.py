@@ -100,13 +100,19 @@ def head(root):
     return git(root, "rev-parse", "HEAD").stdout.strip()
 
 
-def commit(root, reason):
+def commit(root, reason, relative=None):
     validate_all(root)
     check_files(root)
     identity(root)
     if dirty(root) or pending_merge(root):
-        git(root, "add", "-A", "--", ".")
-        git(root, "commit", "-m", f"2brain: {reason}")
+        if relative is None:
+            git(root, "add", "-A", "--", ".")
+            git(root, "commit", "-m", f"2brain: {reason}")
+        else:
+            # Direct editors do not share our lock. Keep a one-record update
+            # scoped even if unrelated work appears just before committing.
+            git(root, "add", "--", relative.as_posix())
+            git(root, "commit", "--only", "-m", f"2brain: {reason}", "--", relative.as_posix())
     return head(root)
 
 
