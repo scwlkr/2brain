@@ -57,6 +57,19 @@ Discovery lists names without opening other records. Default guidance allows at 
 
 Use the user's actual request or explicit lasting preference as the reason. Do not save inferred preferences, suggestions, experiments, or assistant-generated examples.
 
+To edit an existing record in VS Code:
+
+```sh
+2brain edit --general
+2brain edit --tool git
+2brain edit --project owner/repo
+2brain edit --general --reason "Prefer shorter responses"
+```
+
+VS Code's `code` command must be on PATH. The command opens a temporary JSON draft; save it and **close its tab** to finish. It validates the draft and commits locally with a default reason such as `edited general guidance`; `--reason` supplies your own history message. Unchanged records, including formatting-only edits, create no commit. Use `sync` separately to exchange changes with your remote.
+
+Editing refuses to start when there are unsaved context changes. It checks again after VS Code closes and also refuses a stale draft if another commit appeared while editing. Existing work remains untouched. Invalid drafts, editor failures and interrupted edits are retained under the context repository's `.git/2brain-drafts/` directory; the error reports the exact draft path. Correct a retained draft and deliberately save it with `2brain put --general --file <draft-path> --reason "Your reason"` (or the matching tool/project selector), once other pending work is saved. A fresh `edit` always starts from the current record.
+
 Create a UTF-8 file such as `git.json`:
 
 ```json
@@ -105,4 +118,4 @@ Copy the short instruction in [AGENT-STARTUP.md](AGENT-STARTUP.md) into your ter
 python3 project check
 ```
 
-Local tests exercise selective concise reads, no-Git offline reads, JSON, explicit updates/reverts, two-copy merges, conflicts, aborted-resolution recovery, failed fetch/push preservation, a standalone archive, and safe repeatable Codex setup. No hosted CI is required. Native Windows/Linux execution must be verified on those systems; macOS checks do not claim it.
+Local tests exercise selective concise reads, no-Git offline reads, JSON, explicit updates/reverts, editor subprocesses, draft validation/recovery, concurrent-edit protection, two-copy merges, conflicts, aborted-resolution recovery, failed fetch/push preservation, a standalone archive, and safe repeatable Codex setup. Editor tests use a controlled child process; real VS Code interaction requires a native smoke check. No hosted CI is required. Native Windows/Linux execution must be verified on those systems; macOS checks do not claim it.
