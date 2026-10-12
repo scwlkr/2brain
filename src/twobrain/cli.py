@@ -9,6 +9,7 @@ from . import __version__, operations
 from .errors import BrainError
 from .gitrepo import lock, remote, require_repository, status, sync
 from .records import default_home, discover, read_record, select
+from .setup import setup
 
 POLICY = "Current instructions win; project guidance overrides general defaults. Save only requested or explicitly lasting preferences."
 
@@ -39,6 +40,9 @@ def parser():
     mode = init.add_mutually_exclusive_group()
     mode.add_argument("--remote")
     mode.add_argument("--seed", type=Path)
+    onboarding = actions.add_parser("setup", help="prepare private context and optionally install the Codex loader")
+    onboarding.add_argument("repository", nargs="?", help="GitHub owner/repo or Git URL; omit to keep existing local context")
+    onboarding.add_argument("--codex", action="store_true", help="replace global Codex personalization with the loader, backing up previous instructions")
     actions.add_parser("sync", help="checkpoint local edits, fetch, merge, push")
     put = actions.add_parser("put", help="create or replace one record deliberately")
     selectors(put, True)
@@ -97,6 +101,8 @@ def run(root, args):
         raise BrainError("Tool/project selectors do not apply to this action.")
     if args.action == "init":
         return operations.initialize(root, args.remote, args.seed.expanduser().absolute() if args.seed else None)
+    if args.action == "setup":
+        return setup(root, args.repository, args.codex)
     require_repository(root)
     kind, name = selected(args)
     if args.action == "history":

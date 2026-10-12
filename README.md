@@ -13,31 +13,26 @@ The CLI and personalization live in **separate repositories**:
 
 Use your existing Git/GitHub authentication. No credentials belong in records or remote URLs.
 
-macOS/Linux:
+With [uv](https://docs.astral.sh/uv/guides/tools/) installed, setup is two commands on macOS, Windows or Linux:
 
 ```sh
-git clone https://github.com/scwlkr/2brain.git
-cd 2brain
-python3 install.py --prefix ~/.local
-# Add ~/.local/bin to PATH if needed.
-2brain init --remote https://github.com/scwlkr/2brain-context.git
-2brain
+uv tool install "git+https://github.com/scwlkr/2brain@v0.1.1"
+2brain setup scwlkr/2brain-context --codex
 ```
 
-Windows PowerShell (Python and Git already on PATH):
+The package manager installs the CLI in its own environment and creates the platform launcher. It can acquire a compatible Python interpreter when needed. Git and access to the two private repositories are still required; your existing Git credential helper handles authentication. No token belongs in either command.
 
-```powershell
-git clone https://github.com/scwlkr/2brain.git
-cd 2brain
-py -3 install.py --prefix "$env:LOCALAPPDATA\2brain-cli"
-$env:PATH = "$env:LOCALAPPDATA\2brain-cli\bin;$env:PATH"
-2brain init --remote https://github.com/scwlkr/2brain-context.git
-2brain
-```
+If uv reports its executable directory is missing from PATH, run `uv tool update-shell` once and reopen the terminal. On Windows, install uv through your normal package manager (for example `winget install --id astral-sh.uv --exact`) if it is not already available. Restart Codex after setup so it sees the launcher and new instructions.
 
-Add that bin directory to your user PATH for subsequent Windows sessions. Re-run the installer after pulling a CLI update. It uses the Python interpreter that performed the installation; reinstall if that interpreter moves.
+`setup owner/repo` accepts an actual GitHub repository name or a full Git URL. It clones context when absent and otherwise preserves the existing local copy, including manual edits. It refuses a different remote rather than silently switching datasets. To reuse your current context, run `2brain setup --codex`.
 
-Alternatively run `python3 2brain` from the source checkout, `python3 dist/2brain.pyz` after `python3 project build`, or install with `python3 -m pip install .`. On Windows use `py -3` in place of `python3`.
+`--codex` explicitly replaces global Codex personalization with only the short 2brain loader. It saves exact previous `AGENTS.md` and `AGENTS.override.md` bytes under the Codex home's inactive `2brain-backups/` directory, then removes the active override so the loader is used. It honors `CODEX_HOME`. Repeating setup makes no extra backup when the loader is already installed. Without `--codex`, agent instructions are untouched. Failed context initialization leaves agent instructions untouched.
+
+Installation is a normal package install; it never clones personalization or edits agent instructions as an install hook. Personalization stays in its separate private repository and local data copy. The versioned Git URL selects the release deliberately; use the full commit SHA in place of `v0.1.1` when you require an immutable source pin. Git credential-helper behavior is documented by [uv](https://docs.astral.sh/uv/concepts/authentication/git/).
+
+To uninstall the CLI: `uv tool uninstall twobrain-cli`. Your context/history and Codex instruction backups remain available. For a release upgrade, install that release's versioned Git URL. Context changes use `2brain sync` separately.
+
+Advanced source installation remains available: run `python3 install.py --prefix ~/.local` from a clone on macOS/Linux, or `py -3 install.py --prefix "$env:LOCALAPPDATA\2brain-cli"` on Windows and add the resulting `bin` directory to PATH. You can also run `python3 2brain` directly, build a standalone archive with `python3 project build`, or install with `python3 -m pip install .`.
 
 Default local data: `~/Library/Application Support/2brain` on macOS, `%LOCALAPPDATA%\2brain` on Windows, `$XDG_DATA_HOME/2brain` (or `~/.local/share/2brain`) on Linux. Override with `TWOBRAIN_HOME` or `--data <directory>` anywhere in the command. These locate the dataset, not project checkouts.
 
@@ -110,4 +105,4 @@ Copy the short instruction in [AGENT-STARTUP.md](AGENT-STARTUP.md) into your ter
 python3 project check
 ```
 
-Local tests exercise selective concise reads, no-Git offline reads, JSON, explicit updates/reverts, two-copy merges, conflicts, aborted-resolution recovery, failed fetch/push preservation, and a standalone archive. No hosted CI is required. Native Windows/Linux execution must be verified on those systems; macOS checks do not claim it.
+Local tests exercise selective concise reads, no-Git offline reads, JSON, explicit updates/reverts, two-copy merges, conflicts, aborted-resolution recovery, failed fetch/push preservation, a standalone archive, and safe repeatable Codex setup. No hosted CI is required. Native Windows/Linux execution must be verified on those systems; macOS checks do not claim it.
