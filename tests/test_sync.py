@@ -118,7 +118,22 @@ class Synchronization(Scenario):
         self.put(right, "tool", "git", record("Keep modified decision."))
         self.call(left, "sync")
         self.call(right, "sync", expect=3)
-        self.assertEqual(self.call(right, "--tool", "git")["context"]["guidance"], ["Keep modified decision."])
+        response = self.call(right, "--tool", "git")
+        self.assertEqual(response["context"]["guidance"], ["Keep modified decision."])
+        self.assertEqual(len(response["warnings"]), 1)
+
+    def test_local_deletion_with_remote_modification_does_not_invent_local_context(self):
+        left, right, _ = self.pair()
+        self.put(left, "tool", "git", record("Shared preference."))
+        self.call(left, "sync")
+        self.call(right, "sync")
+        self.put(left, "tool", "git", record("Remote modification."))
+        self.call(right, "remove", "--tool", "git", "--reason", "User asked to forget locally")
+        self.call(left, "sync")
+        self.call(right, "sync", expect=3)
+        error = self.call(right, "--tool", "git", expect=1)
+        self.assertIn("no committed local version", error["error"])
+        self.assertEqual(self.call(right)["general"]["guidance"], ["Be concise."])
 
     def test_unrelated_histories_are_not_forced_together(self):
         left, _, remote = self.pair()

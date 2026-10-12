@@ -21,7 +21,7 @@ def main():
         launcher = binaries / "2brain.cmd"
         if any(c in str(archive) + sys.executable for c in '%"\r\n'):
             parser.error("Installation paths containing percent, quotes or newlines are unsupported by cmd.exe.")
-        launcher.write_text(f'@echo off\r\n"{sys.executable}" "{archive}" %*\r\n', encoding="utf-8")
+        launcher.write_bytes(f'@echo off\r\n"{sys.executable}" "{archive}" %*\r\n'.encode("utf-8"))
     else:
         launcher = binaries / "2brain"
         launcher.write_text(f"#!/bin/sh\nexec {shlex.quote(sys.executable)} {shlex.quote(str(archive))} \"$@\"\n", encoding="utf-8")

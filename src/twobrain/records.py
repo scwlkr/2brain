@@ -121,7 +121,7 @@ def select(root, kind, name):
     matches = [key for key in inventory if key.lower() == name.lower() or
                (kind == "project" and "/" not in name and key.split("/")[1].lower() == name.lower())]
     if len(matches) > 1:
-        raise BrainError(f"Ambiguous repository {name!r}; use one of: {', '.join(matches)}.")
+        raise BrainError(f"Ambiguous {kind} {name!r}; use one of: {', '.join(matches)}.")
     if not matches:
         raise BrainError(f"No {kind} record for {name!r}. Use 2brain --list.")
     return record_path(kind, matches[0]), matches[0]
@@ -129,20 +129,30 @@ def select(root, kind, name):
 
 def read_record(root, relative, warnings):
     path = safe_path(root, relative)
+    # A modify/delete conflict can contain valid JSON, so check pending operations
+    # before parsing. Normal reads do not invoke Git at all.
+    from .gitrepo import git, is_repository
+    pending = any((root / ".git" / marker).exists() for marker in ["MERGE_HEAD", "REVERT_HEAD"])
+    if pending and git(root, "ls-files", "-u", "--", relative.as_posix()).stdout:
+        return committed_record(root, relative, warnings)
     try:
         return read_file(path, relative == Path("general.json"))
     except (BrainError, FileNotFoundError) as exc:
-        # Git is consulted only when a requested record is unreadable during a conflict.
-        from .gitrepo import git, is_repository
+        # Also handle unmerged files created by direct Git operations.
         if is_repository(root) and git(root, "ls-files", "-u", "--", relative.as_posix()).stdout:
-            previous = git(root, "show", f"HEAD:{relative.as_posix()}", check=False)
-            if previous.returncode == 0:
-                warnings.append(f"Conflict in {relative.as_posix()}; showing your committed local record.")
-                return parse(previous.stdout, relative == Path("general.json"))
-            raise BrainError(f"Conflict in {relative.as_posix()}; no committed local version. Resolve it first.")
+            return committed_record(root, relative, warnings)
         if isinstance(exc, FileNotFoundError):
             raise BrainError(f"Missing {relative.as_posix()}; initialize or restore your context.") from exc
         raise
+
+
+def committed_record(root, relative, warnings):
+    from .gitrepo import git
+    previous = git(root, "show", f"HEAD:{relative.as_posix()}", check=False)
+    if previous.returncode:
+        raise BrainError(f"Conflict in {relative.as_posix()}; no committed local version. Resolve it first.")
+    warnings.append(f"Conflict in {relative.as_posix()}; showing your committed local record.")
+    return parse(previous.stdout, relative == Path("general.json"))
 
 
 def validate_all(root):

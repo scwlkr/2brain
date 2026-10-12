@@ -106,6 +106,26 @@ class ReadsAndUpdates(Scenario):
         self.call(data, "remote", "https://token@example.invalid/repo.git", expect=1)
         self.assertNotIn("token", (data / ".git/config").read_text())
 
+    def test_argument_errors_are_json_and_missing_reason_cannot_write(self):
+        data = self.initialize()
+        before = self.git(data, "rev-parse", "HEAD")
+        error = self.call(data, "put", "--general", "--file", "-", expect=2)
+        self.assertEqual(error["code"], 2)
+        self.assertIn("reason", error["error"])
+        self.call(data, "--unknown", expect=2)
+        self.assertEqual(self.git(data, "rev-parse", "HEAD"), before)
+
+    def test_native_installer_handles_spaces_in_paths(self):
+        prefix = self.root / "installation with spaces"
+        result = subprocess.run([sys.executable, str(ROOT / "install.py"), "--prefix", str(prefix)],
+                                env=self.env, capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        launcher = prefix / "bin" / ("2brain.cmd" if sys.platform == "win32" else "2brain")
+        result = subprocess.run([str(launcher), "--version"], env=self.env,
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("2brain 0.1.0", result.stdout)
+
     def test_untrusted_symlink_cannot_mutate_external_record(self):
         if sys.platform == "win32":
             self.skipTest("Windows symlink permission requires native qualification")

@@ -13,6 +13,11 @@ from .records import default_home, discover, read_record, select
 POLICY = "Current instructions win; project guidance overrides general defaults. Save only requested or explicitly lasting preferences."
 
 
+class ArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        raise BrainError(f"{message}. Use 2brain --help.", 2)
+
+
 def selectors(parser, required=False):
     group = parser.add_mutually_exclusive_group(required=required)
     group.add_argument("--general", action="store_true", help="select general guidance")
@@ -21,7 +26,7 @@ def selectors(parser, required=False):
 
 
 def parser():
-    result = argparse.ArgumentParser(prog="2brain", description="Concise local personalization. Reads never contact a network.")
+    result = ArgumentParser(prog="2brain", description="Concise local personalization. Reads never contact a network.")
     result.add_argument("--version", action="version", version=f"2brain {__version__}")
     result.add_argument("--data", type=Path, default=default_home(), help="local context directory (or TWOBRAIN_HOME)")
     result.add_argument("--json", action="store_true", help="machine-readable output, including errors")
@@ -107,7 +112,11 @@ def run(root, args):
         if args.action == "remote":
             return {"remote": remote(root, args.url)}
         if args.action == "put":
-            raw = sys.stdin.read(32769) if args.file == "-" else Path(args.file).read_text(encoding="utf-8")
+            if args.file == "-":
+                raw = sys.stdin.read(32769)
+            else:
+                with Path(args.file).open(encoding="utf-8") as source:
+                    raw = source.read(32769)
             if len(raw.encode("utf-8")) > 32768:
                 raise BrainError("Input exceeds 32 KiB.")
             return operations.put(root, kind, name, raw, args.reason)
@@ -148,17 +157,18 @@ def render(value):
 def main(argv=None):
     # Global format/data flags may appear before or after a subcommand.
     raw = list(sys.argv[1:] if argv is None else argv)
-    globals_parser = argparse.ArgumentParser(add_help=False)
+    globals_parser = ArgumentParser(add_help=False)
     globals_parser.add_argument("--json", action="store_true")
     globals_parser.add_argument("--data", type=Path)
-    global_args, rest = globals_parser.parse_known_args(raw)
-    arguments = (["--json"] if global_args.json else [])
-    if global_args.data:
-        arguments += ["--data", str(global_args.data)]
-    arguments += rest
-    args = parser().parse_args(arguments)
-    root = args.data.expanduser().absolute()
+    json_output = "--json" in raw
     try:
+        global_args, rest = globals_parser.parse_known_args(raw)
+        arguments = (["--json"] if global_args.json else [])
+        if global_args.data:
+            arguments += ["--data", str(global_args.data)]
+        arguments += rest
+        args = parser().parse_args(arguments)
+        root = args.data.expanduser().absolute()
         result = run(root, args)
         if args.json:
             print(json.dumps(result, ensure_ascii=False))
@@ -169,7 +179,7 @@ def main(argv=None):
         return 0
     except (BrainError, OSError, UnicodeError) as exc:
         code = exc.code if isinstance(exc, BrainError) else 1
-        if args.json:
+        if json_output:
             print(json.dumps({"error": str(exc), "code": code}, ensure_ascii=False))
         else:
             print(f"2brain: {exc}", file=sys.stderr)

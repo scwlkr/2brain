@@ -96,7 +96,7 @@ Records live at `general.json`, `tools/<name>.json`, and `projects/<owner>/<repo
 
 Sync validates and commits deliberate local file edits **before** networking, fetches origin, merges the corresponding branch, validates the result, then pushes normally. Compatible changes merge; no force push, reset, stash, or preference inference. A rejected push (including a concurrent remote update) preserves local commits; retry sync to merge the newer remote. Network calls time out after 30 seconds; existing Git credential configuration is used without interactive prompts.
 
-If a merge conflicts, exit code 3 names the affected files. Both committed versions remain in Git. Reads of an unreadable conflicted record show your pre-merge committed version and a warning (in JSON, `warnings`); other records remain usable. A record added only on the remote has no prior local version and reports that limitation. Valid manual conflict-resolution edits are readable before saving.
+If a merge conflicts, exit code 3 names the affected files. Both committed versions remain in Git. Reads of a conflicted record show your pre-merge committed version and a warning (in JSON, `warnings`); other records remain usable. A record absent from your pre-merge copy reports that limitation. Once you save your resolution, reads show the resolved record.
 
 Resolve the JSON markers in the named files, run `2brain save --reason "User's resolution"`, then `2brain sync`. Or run `2brain abort`: it backs up current JSON resolution work under `.git/2brain-recovery/`, then restores your committed local version; the fetched competing version remains in Git. Undo conflicts use Git's ordinary `revert --continue`/`revert --abort` flow as reported in the error.
 
