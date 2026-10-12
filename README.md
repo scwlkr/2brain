@@ -2,7 +2,7 @@
 
 Small, portable personalization for terminal agents. `2brain` reads a short introduction; tool and repository details load only when requested. Your current instructions always take precedence.
 
-Python 3.10+ and Git 2.28+; no runtime packages, model, database, or server. Python's standard library keeps the same implementation usable on macOS, Windows and Linux. Separate UTF-8 JSON records are readable, validate before saving, and merge through Git. Git is only required for writes/history/sync; ordinary reads use local files directly.
+Python 3.10+ and Git 2.28+; no Python runtime packages, model, database, or server. Python's standard library keeps ordinary CLI reads portable and offline. The optional OpenTUI browser manages its own Bun runtime and locked dependencies. Separate UTF-8 JSON records validate before saving and merge through Git. Git is only required for writes/history/sync.
 
 ## Setup
 
@@ -65,7 +65,7 @@ override detection. `NO_COLOR` and `TERM=dumb` suppress automatic color.
 Use `--theme light` for forest accents on a light terminal background; the default
 theme uses sage accents for a dark background.
 
-Browse local records with the read-only terminal UI:
+Browse local records with the read-only **OpenTUI** interface:
 
 ```sh
 2brain tui
@@ -73,12 +73,30 @@ Browse local records with the read-only terminal UI:
 2brain --tool wstack tui
 ```
 
+First launch installs pinned Bun and OpenTUI into a private cache; no separate
+Node, npm, or Bun installation is needed. Downloads use TLS, a pinned SHA-512
+checksum for Bun, and a frozen dependency lockfile. Later launches use the retained
+runtime and work offline. Prepare and diagnose it separately with
+`2brain tui --setup --json`. `TWOBRAIN_TUI_CACHE` can select another writable cache.
+
+Until these changes are released on `stable`, update an existing installation
+on your computer from this review branch, then open the browser:
+
+```sh
+uv tool install --force "git+https://github.com/scwlkr/2brain@codex/2brain-terminal-brand"
+2brain tui --setup
+2brain tui
+```
+
+Installing in a cloud checkout does not update the CLI on another computer.
+See the [OpenTUI development instructions](src/twobrain/opentui/README.md).
+
 Use arrows or `j`/`k` to browse, `/` to filter record names, Enter to read on narrow
 terminals, Tab to change focus, Page Up/Down to scroll, `r` to refresh, and `q` to
-quit. Escape clears a search or returns from a record. The browser does not write
-or sync; it restores terminal modes and the cursor on exit or Ctrl+C. It needs an
-interactive terminal. Linux PTY behavior is tested; Windows console support and
-native macOS execution still require qualification on those systems.
+quit. Mouse selection and scrolling are also supported. Escape clears a search
+or returns from a record. OpenTUI owns layout, rendering, input, and terminal
+cleanup. The browser never writes or syncs context. Linux PTY behavior is tested;
+native macOS and Windows execution still require qualification on those systems.
 
 The reusable [brand guide](src/twobrain/brand/index.html), SVG artwork, and compact
 style source are included in both the package and standalone archive:
@@ -170,4 +188,4 @@ Copy the short instruction in [AGENT-STARTUP.md](AGENT-STARTUP.md) into your ter
 python3 project check
 ```
 
-Local tests exercise selective concise reads, no-Git offline reads, JSON, explicit updates/reverts, editor subprocesses, draft validation/recovery, concurrent-edit protection, two-copy merges, conflicts, aborted-resolution recovery, failed fetch/push preservation, a standalone archive, and safe repeatable Codex setup. Editor tests use a controlled child process; real VS Code interaction requires a native smoke check. No hosted CI is required. Native Windows/Linux execution must be verified on those systems; macOS checks do not claim it.
+Local tests exercise selective concise reads, no-Git offline reads, JSON, explicit updates/reverts, editor subprocesses, draft validation/recovery, concurrent-edit protection, two-copy merges, conflicts, aborted-resolution recovery, failed fetch/push preservation, a standalone archive, and safe repeatable Codex setup. The runner also checks TypeScript and native OpenTUI behavior. Editor tests use a controlled child process; real VS Code interaction requires a native smoke check. No hosted CI is required. The current OpenTUI implementation is verified on Linux; native macOS and Windows execution remains unqualified.

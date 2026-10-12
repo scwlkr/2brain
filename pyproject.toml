@@ -17,4 +17,4 @@ where = ["src"]
 include = ["twobrain*"]
 
 [tool.setuptools.package-data]
-twobrain = ["brand/*", "brand/**/*", "brand/.wstack-brand/*", "brand/.wstack-brand/downloads/*"]
+twobrain = ["brand/*", "brand/**/*", "brand/.wstack-brand/*", "brand/.wstack-brand/downloads/*", "opentui/*.ts", "opentui/*.json", "opentui/*.md", "opentui/bun.lock"]

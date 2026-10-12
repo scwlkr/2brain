@@ -1,7 +1,6 @@
 """Quiet sage accents; machine-readable and redirected output stay plain."""
 
 import os
-import unicodedata
 from dataclasses import dataclass
 
 from .branding import palette
@@ -13,48 +12,6 @@ def use_color(mode, stream):
     if mode != "auto":
         return mode == "always"
     return stream.isatty() and "NO_COLOR" not in os.environ and os.environ.get("TERM") != "dumb"
-
-
-def safe(text):
-    return "".join(char for char in str(text)
-                   if not unicodedata.category(char).startswith("C"))
-
-
-def cell_width(text):
-    return sum(0 if unicodedata.combining(c) else 2 if unicodedata.east_asian_width(c) in "WF" else 1
-               for c in text)
-
-
-def fit(text, width):
-    result, used = [], 0
-    for char in safe(text):
-        size = cell_width(char)
-        if used + size > width:
-            break
-        result.append(char)
-        used += size
-    return "".join(result) + " " * max(0, width - used)
-
-
-def wrap(text, width):
-    """Wrap terminal cells, including wide glyphs and long unbroken URLs."""
-    lines, current = [], ""
-    for word in safe(text).split():
-        remaining = word
-        if current and cell_width(current + " " + word) <= width:
-            current += " " + word
-            continue
-        if current:
-            lines.append(current)
-            current = ""
-        for char in remaining:
-            if cell_width(current + char) > width:
-                lines.append(current)
-                current = ""
-            current += char
-    if current or not lines:
-        lines.append(current)
-    return lines
 
 
 def rgb(hex_color, background=False):

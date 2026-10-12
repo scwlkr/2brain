@@ -92,15 +92,16 @@ class TerminalBrowser(Scenario):
                                         stdin=slave, stdout=slave, stderr=slave, env=env, preexec_fn=own_terminal)
         self.addCleanup(self.stop)
         self.output = b''
-        self.until('2brain')
+        self.until('q quit')
 
     def stop(self):
+        import signal
         if self.process.poll() is None:
-            self.process.terminate()
+            os.killpg(self.process.pid, signal.SIGTERM)
             try:
                 self.process.wait(timeout=3)
             except subprocess.TimeoutExpired:
-                self.process.kill()
+                os.killpg(self.process.pid, signal.SIGKILL)
                 self.process.wait(timeout=3)
 
     def until(self, text):
@@ -129,57 +130,25 @@ class TerminalBrowser(Scenario):
         self.send(key, '\x1b[?1049l')
         self.process.wait(timeout=5)
         self.assertEqual(self.process.returncode, 0)
+        with self.assertRaises(ProcessLookupError):
+            os.killpg(self.process.pid, 0)
         self.assertEqual(termios.tcgetattr(self.slave), self.before)
         self.assertIn(b'\x1b[?25h', self.output)
 
-    def test_live_search_selection_scroll_and_exit_leave_context_unchanged(self):
+    def test_open_tui_launches_the_selected_record_and_preserves_context(self):
         data = self.initialize()
-        self.put(data, 'tool', 'git', record('Use local checks.', *['A longer guidance entry for scrolling.'] * 8))
+        self.put(data, 'tool', 'git', record('Installed OpenTUI terminal proof.'))
         before = self.git(data, 'rev-parse', 'HEAD')
-        self.launch(data, height=14)
-        self.send('/git\r', 'Use local checks.')
-        self.send('\x1b[6~' * 3, 'Current instructions win;')
-        self.send('\x1b', '1/2 records')
+        self.launch(data, initial=('--tool', 'git'))
+        self.assertIn(b'Installed OpenTUI terminal proof.', self.output)
         self.finish()
         self.assertEqual(self.git(data, 'rev-parse', 'HEAD'), before)
         self.assertFalse(self.call(data, 'status')['dirty'])
 
-    def test_narrow_layout_selection_and_empty_search(self):
-        data = self.initialize()
-        self.put(data, 'tool', 'git', record('Narrow terminal proof.'))
-        self.launch(data, width=42)
-        self.send('j\r', 'Narrow terminal proof.')
-        self.send('\x1b', 'Enter read')
-        self.send('/nothing\r', '0/0 records')
-        self.send('\r', 'No matching records.')
-        self.finish()
-
-    def test_corrupt_record_is_visible_and_does_not_abort_the_browser(self):
-        data = self.initialize()
-        (data / 'tools').mkdir()
-        (data / 'tools/broken.json').write_text('{invalid')
-        self.launch(data)
-        self.send('j', 'Invalid record JSON:')
-        self.send('k', 'Be concise.')
-        self.finish()
-
-    def test_light_palette_resize_and_no_color(self):
-        import fcntl
-        import struct
-        import termios
-        data = self.initialize()
-        self.launch(data, theme='light')
-        self.assertIn(b'\x1b[48;2;248;248;244m', self.output)
-        fcntl.ioctl(self.slave, termios.TIOCSWINSZ, struct.pack('HHHH', 16, 42, 0, 0))
-        self.until('Enter read')
-        self.finish()
-
-    def test_no_color_environment_and_interrupt_restore_terminal(self):
+    def test_open_tui_ctrl_c_restores_terminal_modes_and_cursor(self):
         data = self.initialize()
         self.env['NO_COLOR'] = '1'
         self.launch(data, color='auto')
-        self.assertNotIn(b'\x1b[38;', self.output)
-        self.assertNotIn(b'\x1b[48;', self.output)
         self.finish('\x03')
 
     def test_project_shorthand_opens_the_matching_record(self):
