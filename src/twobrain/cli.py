@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 
 from . import __version__, operations
+from .appearance import Theme, decorate, use_color
+from .branding import describe as describe_brand, export as export_brand
 from .edit import edit
 from .errors import BrainError
 from .gitrepo import lock, remote, require_repository, status, sync
@@ -32,11 +34,17 @@ def parser():
     result.add_argument("--version", action="version", version=f"2brain {__version__}")
     result.add_argument("--data", type=Path, default=default_home(), help="local context directory (or TWOBRAIN_HOME)")
     result.add_argument("--json", action="store_true", help="machine-readable output, including errors")
+    result.add_argument("--color", choices=["auto", "always", "never"], default="auto", help="terminal color (default: auto; respects NO_COLOR)")
+    result.add_argument("--theme", choices=["dark", "light"], default="dark", help="brand theme for terminal output (default: dark)")
     views = result.add_mutually_exclusive_group()
     views.add_argument("--tool", metavar="NAME")
     views.add_argument("--project", metavar="OWNER/REPO")
     views.add_argument("--list", action="store_true", help="list names without loading records")
     actions = result.add_subparsers(dest="action")
+    browser = actions.add_parser("tui", help="browse local context in a read-only terminal UI")
+    browser.add_argument("--theme", choices=["dark", "light"], default=argparse.SUPPRESS, help="brand theme (default: dark)")
+    brand = actions.add_parser("brand", help="inspect or export the reusable brand board and guide")
+    brand.add_argument("--export", type=Path, metavar="DIRECTORY", help="save the brand kit to a new directory")
     init = actions.add_parser("init", help="initialize empty/seeded context, or clone a private remote")
     mode = init.add_mutually_exclusive_group()
     mode.add_argument("--remote")
@@ -101,6 +109,17 @@ def run(root, args):
         return query(root, args)
     if args.list:
         raise BrainError("Use --list by itself.")
+    if args.action == "tui":
+        if args.json:
+            raise BrainError("The terminal browser does not emit JSON. Use 2brain --list --json or a record selector.", 2)
+        from .tui import browse
+        kind, name = selected(args)
+        browse(root, args.theme, args.color, kind, name)
+        return None
+    if args.action == "brand":
+        if args.tool or args.project:
+            raise BrainError("Tool/project selectors do not apply to brand assets.", 2)
+        return export_brand(args.export) if args.export else describe_brand()
     if args.action not in {"put", "edit", "remove", "history"} and (args.tool or args.project):
         raise BrainError("Tool/project selectors do not apply to this action.")
     if args.action == "init":
@@ -151,6 +170,9 @@ def render_record(title, record):
 
 
 def render(value):
+    if "brand" in value and "palette" in value:
+        return "\n".join(["2brain brand", *[f"{name}: {color}" for name, color in value["palette"].items()],
+                          value["export"], value["reference"]])
     if "policy" in value:
         lines = []
         if "general" in value:
@@ -172,20 +194,27 @@ def main(argv=None):
     globals_parser = ArgumentParser(add_help=False)
     globals_parser.add_argument("--json", action="store_true")
     globals_parser.add_argument("--data", type=Path)
+    globals_parser.add_argument("--color", choices=["auto", "always", "never"], default="auto")
+    globals_parser.add_argument("--theme", choices=["dark", "light"], default="dark")
     json_output = "--json" in raw
+    error_color, error_theme = "auto", "dark"
     try:
         global_args, rest = globals_parser.parse_known_args(raw)
-        arguments = (["--json"] if global_args.json else [])
+        error_color, error_theme = global_args.color, global_args.theme
+        arguments = ["--color", global_args.color, "--theme", global_args.theme] + (["--json"] if global_args.json else [])
         if global_args.data:
             arguments += ["--data", str(global_args.data)]
         arguments += rest
         args = parser().parse_args(arguments)
         root = args.data.expanduser().absolute()
         result = run(root, args)
+        if result is None:
+            return 0
         if args.json:
             print(json.dumps(result, ensure_ascii=False))
         else:
-            print(render(result))
+            output = render(result)
+            print(decorate(output, args.theme) if use_color(args.color, sys.stdout) else output)
             for warning in result.get("warnings", []):
                 print(f"2brain: {warning}", file=sys.stderr)
         return 0
@@ -194,7 +223,10 @@ def main(argv=None):
         if json_output:
             print(json.dumps({"error": str(exc), "code": code}, ensure_ascii=False))
         else:
-            print(f"2brain: {exc}", file=sys.stderr)
+            message = f"2brain: {exc}"
+            if use_color(error_color, sys.stderr):
+                message = Theme(error_theme).paint(message, "accent")
+            print(message, file=sys.stderr)
         return code
 
 

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2brain — identity & terminal guide</title>
+  <link rel="stylesheet" href="guide.css">
+  <script src=".wstack-brand/catalog.js" defer></script>
+  <script src=".wstack-brand/integration.js" defer></script>
+  <script src="guide.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="#"><img src="symbols/mark-ink.svg" alt="" width="28" height="28">2brain</a>
+    <span>Identity & terminal guide · 01</span>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="intro">
+        <p class="eyebrow">A little context. A clear head.</p>
+        <h1>A second brain.<br>A quieter<br>interface.</h1>
+        <p class="lead">A small, personal tool with room to think. Warm white, deep ink, and a measured touch of sage.</p>
+        <a class="button" href="references/brand-board.svg" download data-wstack-download="references/brand-board.svg">Save the board <span aria-hidden="true">↗</span></a>
+      </div>
+      <figure class="board">
+        <img src="references/brand-board.svg" alt="Reconstructed 2brain board: split-brain mark, lowercase wordmark, ink and sage reverses, app icons and small-size examples.">
+        <figcaption>Editable reconstruction of the supplied board. The original attachment is not included; logo geometry and colors are interpreted from its preview.</figcaption>
+      </figure>
+    </section>
+    <section class="section palette" aria-labelledby="palette-title">
+      <div class="section-heading"><p class="eyebrow">01 / Color</p><h2 id="palette-title">Three colors. A little breathing room.</h2></div>
+      <div class="swatches">
+        <button class="swatch ink" data-color="ink"><span>Ink</span><code>#111715</code><small>Grounding, structure, and body text.</small></button>
+        <button class="swatch paper" data-color="paper"><span>Paper</span><code>#F8F8F4</code><small>Space, clarity, and light surfaces.</small></button>
+        <button class="swatch sage" data-color="sage"><span>Sage</span><code>#94B49C</code><small>Identity, active selection, and emphasis.</small></button>
+      </div>
+      <p class="note">Click a swatch to copy its hex value. Use ink on sage, paper on ink, and forest <code data-token="forest">#42634F</code> for small accent text on paper. Sage on paper belongs to artwork, not body text.</p>
+      <p id="color-status" role="status" aria-live="polite"></p>
+    </section>
+    <section class="section" aria-labelledby="terminal-title">
+      <div class="section-heading"><p class="eyebrow">02 / In the terminal</p><h2 id="terminal-title">Useful first. Quiet by default.</h2></div>
+      <div class="applications">
+        <article class="terminal"><div class="terminal-bar"><span class="dot"></span><span>CLI / selective context</span></div>
+          <pre><span class="accent">2brain / General</span>
+<span class="accent">  · </span>Load only the context you need.
+<span class="accent">  · </span>Keep your current instructions first.
+
+<span class="muted">→ Personal skills: 2brain --tool wstack</span></pre>
+          <p>One sage heading. Calm bullets. Secondary pointers recede. Redirected output and JSON retain their compact, plain format.</p>
+        </article>
+        <article class="terminal"><div class="terminal-bar"><span class="dot"></span><span>TUI / local context browser</span></div>
+          <pre><span class="accent">2brain / your context, close at hand</span>
+<span class="muted">LOCAL CONTEXT                 READ ONLY</span>
+
+<span class="selected"> &gt; General       </span>  <span class="accent">General</span>
+   git / tool       · Load what matters.
+   wstack / tool    · Keep it personal.
+
+<span class="muted">↑↓ browse · / search · q quit</span></pre>
+          <p>A sage selection carries the focus. Ink and paper do the reading. The same palette supports a light theme and a color-free mode.</p>
+        </article>
+      </div>
+      <div class="commands"><code>2brain --color always</code><code>2brain tui</code><code>2brain tui --theme light</code><code>2brain brand --export ./my-brand-kit</code></div>
+    </section>
+    <section class="section identity" aria-labelledby="identity-title">
+      <div class="section-heading"><p class="eyebrow">03 / Form & voice</p><h2 id="identity-title">Rounded edges. Clear intentions.</h2></div>
+      <div class="rules">
+        <article><h3>Leave space around the mark.</h3><img class="spacing" src="symbols/mark-ink.svg" alt="The ink split-brain mark inside a generous clear-space frame"><p>Keep at least one stroke-width of clear space on every side. Use the symbol at 24 px or larger; below that, use the name in text.</p></article>
+        <article><h3>Keep the shape intact.</h3><div class="mini-icons"><img src="icons/app-paper.svg" alt="Paper app icon"><img src="icons/app-ink.svg" alt="Ink app icon"><img src="icons/app-sage.svg" alt="Sage app icon"></div><p>Use the supplied monochrome and reverse variants. Do not stretch, rotate, add outlines, or recolor the mark outside this palette.</p></article>
+        <article><h3>Say the useful thing.</h3><p class="voice-example">“Local context is ready.”</p><p>Short, specific, and human. Use a system monospace in the terminal and a rounded system sans elsewhere. The path-drawn wordmark is an approximation of the board, not an identified font.</p></article>
+      </div>
+    </section>
+    <section class="section" data-wstack-catalog aria-labelledby="library-title">
+      <div class="section-heading"><p class="eyebrow">04 / Keep it close</p><h2 id="library-title">Artwork, ready to reuse.</h2></div>
+      <p>Editable SVG marks, wordmarks, and app icons. Choose All resources for the reference board, this guide, and supporting files.</p>
+    </section>
+    <section class="section direction" aria-labelledby="direction-title">
+      <div><p class="eyebrow">05 / Future work</p><h2 id="direction-title">Carry the feeling forward.</h2><p>Keep the subject and medium in your own prompt. Append this reusable style block for consistent color, type, and treatment.</p></div>
+      <div><label for="prompt">Reusable style JSON</label><textarea id="prompt" data-wstack-style readonly rows="9"></textarea><button class="button" type="button" data-wstack-copy="#prompt">Copy style JSON</button><p data-wstack-status role="status" aria-live="polite"></p></div>
+    </section>
+  </main>
+  <footer><a class="wordmark" href="#">2brain</a><p>Identity derived from your supplied board. Palette tokens and prompt direction live in <a href="style.json">style.json</a>. Edit this guide and the SVGs directly.</p></footer>
+</body>
+</html>

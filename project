@@ -19,8 +19,12 @@ def build(destination):
         staging = Path(temporary)
         package = staging / "twobrain"
         package.mkdir()
-        for source in (ROOT / "src/twobrain").glob("*.py"):
-            (package / source.name).write_bytes(source.read_bytes())
+        sources = ROOT / "src/twobrain"
+        for source in sources.rglob("*"):
+            if source.is_file() and "__pycache__" not in source.parts and source.suffix != ".pyc":
+                target = package / source.relative_to(sources)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(source.read_bytes())
         zipapp.create_archive(staging, target=destination, interpreter="/usr/bin/env python3",
                               main="twobrain.cli:main", compressed=True)
     print(destination)

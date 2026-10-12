@@ -1,0 +1,6 @@
+{
+  "colors": ["ink #111715", "paper #F8F8F4", "sage #94B49C", "forest #42634F", "muted #ADB6AD", "stone #5C6861", "line #29352E", "fog #DCE2DA"],
+  "type": ["rounded geometric sans for the lowercase 2brain identity", "readable system monospace for terminal content"],
+  "treatment": ["a split brain silhouette built from continuous rounded strokes", "generous warm-white space", "quiet sage accents on ink", "simple flat monochrome variants", "restrained framing and clear keyboard focus"],
+  "exclude": ["neon colors", "busy ASCII art", "decorative borders around every item", "glossy effects in the terminal", "low-contrast body text"]
+}

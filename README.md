@@ -58,6 +58,42 @@ To use your own private remote, create an **empty private repository**, then `2b
 
 ## Read only what you need
 
+Terminal output uses quiet sage accents from the supplied 2brain brand board.
+Colors appear automatically in interactive terminals; redirected text and `--json`
+remain plain. Use `--color always` or `--color never` anywhere in a command to
+override detection. `NO_COLOR` and `TERM=dumb` suppress automatic color.
+Use `--theme light` for forest accents on a light terminal background; the default
+theme uses sage accents for a dark background.
+
+Browse local records with the read-only terminal UI:
+
+```sh
+2brain tui
+2brain tui --theme light
+2brain --tool wstack tui
+```
+
+Use arrows or `j`/`k` to browse, `/` to filter record names, Enter to read on narrow
+terminals, Tab to change focus, Page Up/Down to scroll, `r` to refresh, and `q` to
+quit. Escape clears a search or returns from a record. The browser does not write
+or sync; it restores terminal modes and the cursor on exit or Ctrl+C. It needs an
+interactive terminal. Linux PTY behavior is tested; Windows console support and
+native macOS execution still require qualification on those systems.
+
+The reusable [brand guide](src/twobrain/brand/index.html), SVG artwork, and compact
+style source are included in both the package and standalone archive:
+
+```sh
+2brain brand
+2brain brand --export ./2brain-brand
+```
+
+Export uses a new directory and preserves existing files. Open its `index.html`
+in a browser for color roles, artwork previews/downloads, terminal examples, and
+reusable style JSON. The saved vector board is an editable reconstruction of the
+supplied preview; the original attachment was not accessible as a file. Its logo
+geometry, lettering, and color values are interpreted rather than exact originals.
+
 ```sh
 2brain
 2brain --tool git
