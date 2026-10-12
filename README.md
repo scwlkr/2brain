@@ -83,7 +83,7 @@ Until these changes are released on `stable`, update an existing installation
 on your computer from this review branch, then open the browser:
 
 ```sh
-uv tool install --force "git+https://github.com/scwlkr/2brain@codex/2brain-terminal-brand"
+uv tool install --force --refresh "git+https://github.com/scwlkr/2brain.git@codex/2brain-terminal-brand"
 2brain tui --setup
 2brain tui
 ```
