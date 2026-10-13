@@ -497,16 +497,8 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     const entry = visible[list.getSelectedIndex()];
     if (!entry) { flashStatus("No record selected."); return; }
     if (entry.kind === "general") {
-      try {
-        backend.remove(entry);
-      } catch (error) {
-        flashStatus(error instanceof Error ? error.message : String(error));
-        return;
-      }
-      invalidateViews();
-      entries = backend.entries();
-      filter();
-      flashStatus("Removed general.");
+      try { backend.remove(entry); }
+      catch (error) { flashStatus(error instanceof Error ? error.message : String(error)); }
       return;
     }
     const returnTo = screen.name === "read" ? "read" : "browse";
