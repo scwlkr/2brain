@@ -16,7 +16,7 @@ async function fixture(width=100, height=24, color=true, theme: "dark" | "light"
   mkdirSync(join(root, "projects/owner"), {recursive:true});
   const record=(...guidance:string[]) => JSON.stringify({schema_version:1, guidance, pointers:[]});
   writeFileSync(join(root,"general.json"),record("General OpenTUI proof."));
-  writeFileSync(join(root,"tools/git.json"),record("Use local checks.", ...Array(12).fill("A long entry for meaningful scrolling.")));
+  writeFileSync(join(root,"tools/git.json"),record("Use local checks.", ...Array(12).fill("A long entry for meaningful scrolling."), "End of saved context."));
   writeFileSync(join(root,"projects/owner/repo.json"),record("Project-specific OpenTUI proof."));
   const command: string[]=JSON.parse(process.env.TWOBRAIN_TEST_BACKEND || "[]");
   if (!command.length) throw new Error("Tests require the actual 2brain Python backend command.");
@@ -114,12 +114,12 @@ test("narrow OpenTUI layout reads a record and returns to discovery",async () =>
   expect(await f.frame()).toContain("Use local checks.");
 });
 
-test("scrolling reaches the policy and a corrupt selected record is recoverable",async () => {
+test("scrolling reaches the saved context end and a corrupt record is recoverable",async () => {
   const f=await fixture(100,14);
   f.harness.mockInput.pressArrow("down");
   await f.frame();
   for (let i=0;i<5;i++) f.harness.mockInput.pressKey("\x1b[6~");
-  expect(await f.frame()).toContain("Current instructions win;");
+  expect(await f.frame()).toContain("End of saved context.");
   writeFileSync(join(f.root,"tools/git.json"), "{broken");
   f.harness.mockInput.pressKey("r");
   // Refresh resets discovery to the general record; select the invalid tool again.
@@ -607,13 +607,12 @@ test("NO_COLOR presentation retains default foreground and background for conten
   }
 });
 
-test("detail pane paints title, guidance bullet, pointer label, and policy with brand roles", async () => {
+test("detail pane paints saved title, guidance bullet, and pointer label with brand roles", async () => {
   const f = await writableFixture();
   const frame = await f.frame();
   expect(frame).toContain("Fixture User");
   expect(frame).toContain("· Keep local checks.");
   expect(frame).toContain("→ Notes: notes.md");
-  expect(frame).toContain("Current instructions win;");
   const spans = f.harness.captureSpans().lines.flatMap(line => line.spans);
   expect(spans.find(span => span.text.includes("Fixture User"))?.fg.toInts()).toEqual([148, 180, 156, 255]);
   expect(spans.find(span => span.text === "· ")?.fg.toInts()).toEqual([148, 180, 156, 255]);
@@ -621,7 +620,6 @@ test("detail pane paints title, guidance bullet, pointer label, and policy with 
   expect(spans.find(span => span.text === "→ ")?.fg.toInts()).toEqual([173, 182, 173, 255]);
   expect(spans.find(span => span.text === "Notes:")?.fg.toInts()).toEqual([148, 180, 156, 255]);
   expect(spans.find(span => span.text.includes("notes.md"))?.fg.toInts()).toEqual([248, 248, 244, 255]);
-  expect(spans.find(span => span.text.includes("Current instructions win;"))?.fg.toInts()).toEqual([173, 182, 173, 255]);
 });
 
 test("NO_COLOR detail hierarchy stays readable with default span colors", async () => {
@@ -630,7 +628,7 @@ test("NO_COLOR detail hierarchy stays readable with default span colors", async 
   expect(shown).toContain("· Keep local checks.");
   expect(shown).toContain("→ Notes: notes.md");
   const spans = f.harness.captureSpans().lines.flatMap(line => line.spans);
-  for (const phrase of ["Fixture User", "· ", "Keep local checks.", "→ ", "Notes:", "notes.md", "Current instructions win;"]) {
+  for (const phrase of ["Fixture User", "· ", "Keep local checks.", "→ ", "Notes:", "notes.md"]) {
     const span = spans.find(item => item.text.includes(phrase) || item.text === phrase);
     expect(span?.fg.intent).toBe("default");
   }

@@ -10,11 +10,7 @@ from .gitrepo import git, lock, remote, require_ready, require_repository
 from .operations import initialize
 from .records import check_atom, validate_all
 
-CODEX_LOADER = (
-    "Near the start of each coding session, run `2brain` and use its output as personalization guidance. "
-    "Load additional tool or repository context only when needed with `2brain --tool <name>` or "
-    "`2brain --project <owner/repo>`. Use `2brain --list` to discover available context.\n"
-)
+CODEX_LOADER = "Coding start → run `2brain`.\n"
 
 
 def expand_remote(value):

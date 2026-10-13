@@ -17,8 +17,7 @@ class Setup(Scenario):
         self.assertTrue(result["instructions_changed"])
         self.assertFalse((home / "AGENTS.override.md").exists())
         text = (home / "AGENTS.md").read_text()
-        self.assertIn("run `2brain`", text)
-        self.assertNotIn("Previous", text)
+        self.assertEqual(text, "Coding start → run `2brain`.\n")
         from pathlib import Path
         backup = Path(result["instructions_backup"])
         self.assertEqual((backup / "AGENTS.md").read_bytes(), b"Previous global preferences.\n")

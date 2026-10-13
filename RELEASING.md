@@ -13,8 +13,8 @@ Version tags select a particular release. Git branch `stable` and npm dist-tag `
 
 ## Release steps
 
-1. Update the version in `pyproject.toml`, `src/twobrain/__init__.py`, `package.json`, the installer version assertion in `tests/test_reads_updates.py`, and the pinned example in `README.md`. Commit and review through the normal PR flow.
-2. Run `python3 project check` on the clean candidate before pushing. After merging, fetch and fast-forward `main`, confirm the merged changes, and run the same check on the clean landed commit. Keep the output as local release evidence. The check runs `scripts/verify-npm-pack.mjs` when Node is on PATH.
+1. Update the version in `pyproject.toml`, `src/twobrain/__init__.py`, `package.json`, the installer version assertion in `tests/test_reads_updates.py`, and the pinned example in `README.md`. Delivery and release review follow Wstack; `main` also publishes a public npm `dev` build.
+2. Run `python3 project check`; repeat after invalidating changes. The check runs `scripts/verify-npm-pack.mjs` when Node is on PATH.
 3. Build the wheel and standalone archive from that landed commit. Substitute the new version in all commands below:
 
    ```sh

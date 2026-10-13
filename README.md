@@ -1,6 +1,6 @@
 # 2brain
 
-Small, portable personalization for terminal agents. `2brain` reads a short introduction; tool and repository details load only when requested. Your current instructions always take precedence.
+Small, portable background context for terminal agents: identity, roles, projects, and tool/access details. Reads output your saved context. Workflow instructions and skill activation come from editable records; the CLI adds no policy or instruction hierarchy.
 
 Python 3.10+ and Git 2.28+; no Python runtime packages, model, database, or server. Python's standard library keeps ordinary CLI reads portable and offline. The optional OpenTUI browser manages its own Bun runtime and locked dependencies. Separate UTF-8 JSON records validate before saving and merge through Git. Git is only required for writes/history/sync.
 
@@ -51,7 +51,7 @@ On additional computers, clone with `2brain init --remote <URL>`. Use a normal G
 
 `2brain setup owner/repo` remains optional shorthand when the remote already lives on GitHub. It also accepts a full Git URL for any host. It clones when absent and otherwise preserves the existing local copy, including manual edits. It refuses a different remote rather than silently switching datasets.
 
-Optional Codex wiring uses `--codex`. `2brain setup --codex` (with or without a remote) replaces global Codex personalization with only the short 2brain loader. It saves exact previous `AGENTS.md` and `AGENTS.override.md` bytes under the Codex home's inactive `2brain-backups/` directory, then removes the active override so the loader is used. It honors `CODEX_HOME`. Repeating setup makes no extra backup when the loader is already installed. Without `--codex`, agent instructions are untouched. Failed context initialization leaves agent instructions untouched. Restart Codex after setup so it sees the launcher and new instructions.
+Optional Codex wiring uses `--codex`. `2brain setup --codex` installs only `Coding start → run 2brain.` in global startup instructions. Workflow and skill activation remain editable context. It backs up previous `AGENTS.md` and `AGENTS.override.md` bytes under the Codex home's inactive `2brain-backups/`, then removes the active override. It honors `CODEX_HOME`; repeating setup creates no backup when unchanged. Without `--codex`, startup files stay untouched. Failed context initialization also leaves them untouched.
 
 Installation is a normal package install; it never clones personalization or edits agent instructions as an install hook. Personalization stays in your local data directory and optional remote. The git `stable` branch and the npm `stable` dist-tag advance only to published releases. Ordinary `main` commits feed the npm `dev` dist-tag. Git credential-helper behavior for uv git installs is documented by [uv](https://docs.astral.sh/uv/concepts/authentication/git/).
 
@@ -155,7 +155,7 @@ geometry, lettering, and color values are interpreted rather than exact original
 2brain --project owner/example-repo --json
 ```
 
-Discovery lists names without opening other records. Default guidance allows at most six entries and 1,000 characters, plus four pointers. Tool reads return just that tool. Project reads include general guidance followed by the repository record; JSON explicitly gives precedence as current instructions → project → general. Free-text guidance remains instructions for the receiving agent, rather than executable policy. An ambiguous unqualified repository name requires `owner/repo`; no aliases or per-computer checkout mappings exist.
+Discovery lists names without opening other records. General context allows six entries, 1,000 characters, and four pointers. Tool reads return just that tool; project reads include general context. Text shows saved context with labels; JSON returns records and read warnings. No appended policy, inferred instruction hierarchy, or fallback workflow. The `guidance` field is user-editable text. An ambiguous repository name requires `owner/repo`.
 
 ## Deliberate updates
 
@@ -169,28 +169,28 @@ In `2brain tui`, `e` edits guidance, `p` edits pointers, and `a` creates a tool 
 2brain edit --general
 2brain edit --tool git
 2brain edit --project owner/repo
-2brain edit --general --reason "Prefer shorter responses"
+2brain edit --general --reason "User updated their role"
 ```
 
 VS Code's `code` command must be on PATH. The command opens a temporary JSON draft; save it and **close its tab** to finish. It validates the draft and commits locally with a default reason such as `edited general guidance`; `--reason` supplies your own history message. Unchanged records, including formatting-only edits, create no commit. Use `sync` separately to exchange changes with your remote.
 
 Editing refuses to start when there are unsaved context changes. It checks again after VS Code closes and also refuses a stale draft if another commit appeared while editing. Existing work remains untouched. Invalid drafts, editor failures and interrupted edits are retained under the context repository's `.git/2brain-drafts/` directory; the error reports the exact draft path. Correct a retained draft and deliberately save it with `2brain put --general --file <draft-path> --reason "Your reason"` (or the matching tool/project selector), once other pending work is saved. A fresh `edit` always starts from the current record.
 
-Create a UTF-8 file such as `git.json`:
+Create a UTF-8 file such as `tool.json`:
 
 ```json
 {
   "schema_version": 1,
-  "guidance": ["A preference the user explicitly confirmed."],
-  "pointers": [{"label": "Existing instructions", "target": "https://github.com/owner/repo"}]
+  "guidance": ["Configured tool and access details the user confirmed."],
+  "pointers": [{"label": "Tool reference", "target": "https://github.com/owner/repo"}]
 }
 ```
 
 ```sh
-2brain put --tool git --file git.json --reason "User asked to remember their Git preference"
-2brain put --project owner/repo --file repo.json --reason "User confirmed this repository convention"
-2brain put --general --file general.json --reason "User requested updated general guidance"
-2brain remove --tool git --reason "User asked to forget this preference"
+2brain put --tool example-tool --file tool.json --reason "User confirmed this tool's access context"
+2brain put --project owner/repo --file repo.json --reason "User confirmed this project's context"
+2brain put --general --file general.json --reason "User requested updated background context"
+2brain remove --tool example-tool --reason "User asked to forget this context"
 2brain history --tool git
 2brain undo <commit-SHA> --reason "User asked to undo that update"
 ```

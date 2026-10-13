@@ -21,11 +21,25 @@ class ReadsAndUpdates(Scenario):
         self.assertEqual(tool["context"]["guidance"], ["Use local checks."])
         project = self.call(data, "--project", "repo", env={"PATH": str(empty_path)})
         self.assertEqual(project["project"], "owner/repo")
-        self.assertEqual(project["precedence"], ["current_instructions", "project", "general"])
+        for view in (general, tool, project):
+            self.assertNotIn("policy", view)
+            self.assertNotIn("precedence", view)
         inventory = self.call(data, "--list", env={"PATH": str(empty_path)})
         self.assertEqual(inventory["tools"], ["broken", "git"])
         text = self.call(data, raw=True, env={"PATH": str(empty_path)}).stdout
         self.assertLess(len(text.split()), 80)
+
+    def test_workflow_instructions_come_only_from_editable_context(self):
+        data = self.initialize()
+        self.put(data, "general", None, record("Use installed wstack.", person="Fixture User"))
+        self.assertEqual(self.call(data, raw=True).stdout, "Fixture User\n- Use installed wstack.\n")
+        self.put(data, "general", None, record("Use my chosen workflow.", person="Fixture User"))
+        self.assertEqual(self.call(data, raw=True).stdout, "Fixture User\n- Use my chosen workflow.\n")
+        self.put(data, "tool", "example", record("Tool context."))
+        self.put(data, "project", "owner/repo", record("Project context."))
+        self.assertEqual(self.call(data, "--tool", "example", raw=True).stdout, "example\n- Tool context.\n")
+        self.assertEqual(self.call(data, "--project", "owner/repo", raw=True).stdout,
+                         "Fixture User\n- Use my chosen workflow.\nowner/repo\n- Project context.\n")
 
     def test_create_replace_remove_and_undo_preserve_history(self):
         data = self.initialize()
