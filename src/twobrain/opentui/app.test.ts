@@ -1,5 +1,5 @@
 import {afterEach, expect, test} from "bun:test";
-import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "node:fs";
+import {existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {createTestRenderer} from "@opentui/core/testing";
@@ -42,8 +42,32 @@ test("OpenTUI loads selective context, filters names, and reports empty results"
   f.harness.mockInput.pressKey("/");
   f.harness.mockInput.typeText("nonexistent");
   f.harness.mockInput.pressEnter();
-  expect(await f.frame()).toContain("No matching records.");
-  expect(await f.frame()).toContain("0/0 records");
+  const empty = await f.frame();
+  expect(empty).toContain("No matching records. Esc clears · a creates a record.");
+  expect(empty).toContain("0/0 records");
+});
+
+test("empty tool and project detail name the next edit", async () => {
+  const f = await fixture();
+  const empty = JSON.stringify({schema_version: 1, guidance: [], pointers: []});
+  writeFileSync(join(f.root, "tools/blank.json"), empty);
+  writeFileSync(join(f.root, "projects/owner/repo.json"), empty);
+  f.harness.mockInput.pressKey("r");
+  f.harness.mockInput.pressArrow("down");
+  const tool = await f.frame();
+  expect(tool).toContain("blank / tool");
+  expect(tool).toContain("No guidance yet.");
+  expect(tool).toContain("e writes guidance · p adds pointers · a creates a record.");
+  expect(tool).not.toContain("No guidance saved yet.");
+  expect(tool).not.toContain("General OpenTUI proof.");
+  const cta = f.harness.captureSpans().lines.flatMap(line => line.spans).find(span => span.text.includes("e writes guidance"));
+  expect(cta?.fg.toInts()).toEqual([173, 182, 173, 255]);
+  f.harness.mockInput.pressArrow("down");
+  f.harness.mockInput.pressArrow("down");
+  const project = await f.frame();
+  expect(project).toContain("owner/repo / project");
+  expect(project).toContain("e writes guidance · p adds pointers · a creates a record.");
+  expect(project).toContain("General OpenTUI proof.");
 });
 
 test("browse mode type-to-filter without slash, keeping e for edit", async () => {
@@ -477,6 +501,100 @@ test("pointer add refuses the general cap of 4 and the specific cap of 8", async
   expect(projectRefused).toContain("Q1 → https://example.invalid/1");
   expect(readFileSync(join(f.root, "projects/owner/repo.json"))).toEqual(projectBefore);
   expect(readFileSync(join(f.root, "general.json"))).toEqual(generalBefore);
+});
+
+test("d removes a tool and a project after confirm, and general refuses", async () => {
+  const f = await writableFixture();
+  f.backend.write({kind: "tool", name: "ripgrep"}, {schema_version: 1, guidance: ["Search locally."], pointers: []});
+  f.harness.mockInput.pressKey("r");
+  f.harness.mockInput.pressArrow("down");
+  const ready = await f.frame();
+  expect(ready).toContain("ripgrep / tool");
+  expect(ready).toContain("Search locally.");
+  expect(ready).toContain("d remove");
+  const toolPath = join(f.root, "tools/ripgrep.json");
+  const projectPath = join(f.root, "projects/owner/repo.json");
+  const generalBefore = readFileSync(join(f.root, "general.json"));
+  f.harness.mockInput.pressKey("d");
+  const asking = await f.frame();
+  expect(asking).toContain("Remove ripgrep? y confirm · Esc cancel");
+  expect(asking).toContain("▶ ripgrep / tool");
+  f.harness.mockInput.pressArrow("down");
+  const held = await f.frame();
+  expect(held).toContain("Remove ripgrep? y confirm · Esc cancel");
+  expect(held).toContain("▶ ripgrep / tool");
+  expect(readFileSync(toolPath, "utf8")).toContain("Search locally.");
+  f.harness.mockInput.pressEscape();
+  await Bun.sleep(80);
+  const cancelled = await f.frame();
+  expect(cancelled).toContain("Remove cancelled.");
+  expect(cancelled).toContain("Search locally.");
+  expect(cancelled).not.toContain("y confirm");
+  expect(readFileSync(toolPath, "utf8")).toContain("Search locally.");
+
+  f.harness.mockInput.pressKey("d");
+  f.harness.mockInput.pressKey("y");
+  const removedTool = await f.frame();
+  expect(removedTool).toContain("Removed ripgrep.");
+  expect(removedTool).toContain("Project line.");
+  expect(removedTool).not.toContain("ripgrep / tool");
+  expect(removedTool).not.toContain("Search locally.");
+  expect(existsSync(toolPath)).toBe(false);
+  expect(f.backend.read(["--list"]).tools).toEqual([]);
+  expect(readFileSync(projectPath, "utf8")).toContain("Project line.");
+
+  f.harness.mockInput.pressKey("d");
+  const askingProject = await f.frame();
+  expect(askingProject).toContain("Remove owner/repo? y confirm · Esc cancel");
+  f.harness.mockInput.pressKey("Y");
+  const removedProject = await f.frame();
+  expect(removedProject).toContain("Removed owner/repo.");
+  expect(removedProject).toContain("Keep local checks.");
+  expect(removedProject).not.toContain("Project line.");
+  expect(removedProject).not.toContain("owner/repo / project");
+  expect(existsSync(projectPath)).toBe(false);
+  expect(f.backend.read(["--list"]).projects).toEqual([]);
+  expect(readFileSync(join(f.root, "general.json"))).toEqual(generalBefore);
+
+  f.harness.mockInput.pressKey("d");
+  const refused = await f.frame();
+  expect(refused).toContain("Replace general guidance with an empty record to clear it; keep general.json.");
+  expect(refused).not.toContain("y confirm");
+  expect(refused).toContain("Keep local checks.");
+  expect(readFileSync(join(f.root, "general.json"))).toEqual(generalBefore);
+});
+
+test("read mode d confirms before remove and escape keeps the record", async () => {
+  const f = await writableFixture();
+  f.backend.write({kind: "tool", name: "ripgrep"}, {schema_version: 1, guidance: ["Search locally."], pointers: []});
+  f.harness.mockInput.pressKey("r");
+  f.harness.mockInput.pressArrow("down");
+  f.harness.mockInput.pressEnter();
+  const reading = await f.frame();
+  expect(reading).toContain("Read ·");
+  expect(reading).toContain("Search locally.");
+  expect(reading).toContain("Tab browse");
+  const toolPath = join(f.root, "tools/ripgrep.json");
+  f.harness.mockInput.pressKey("d");
+  const asking = await f.frame();
+  expect(asking).toContain("Remove ripgrep? y confirm · Esc cancel");
+  expect(asking).toContain("y confirm · Esc cancel");
+  f.harness.mockInput.pressEscape();
+  await Bun.sleep(80);
+  const cancelled = await f.frame();
+  expect(cancelled).toContain("Remove cancelled.");
+  expect(cancelled).toContain("Search locally.");
+  expect(cancelled).toContain("Tab browse");
+  expect(cancelled).not.toContain("Tab read");
+  expect(readFileSync(toolPath, "utf8")).toContain("Search locally.");
+  f.harness.mockInput.pressKey("d");
+  f.harness.mockInput.pressKey("y");
+  const removed = await f.frame();
+  expect(removed).toContain("Removed ripgrep.");
+  expect(removed).toContain("Project line.");
+  expect(removed).toContain("Tab read");
+  expect(removed).not.toContain("Search locally.");
+  expect(existsSync(toolPath)).toBe(false);
 });
 
 test("NO_COLOR presentation retains default foreground and background for content",async () => {
