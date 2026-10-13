@@ -3,7 +3,7 @@ import {StyledText, bold, fg, type ColorInput, type TextChunk} from "@opentui/co
 export type Entry = {kind: "general" | "tool" | "project"; name: string};
 type RecordData = {person?: string; guidance: string[]; pointers: {label: string; target: string}[]};
 export type StoredRecord = {schema_version: 1; guidance: string[]; pointers: {label: string; target: string}[]; person?: string};
-export type View = {general?: RecordData; context?: RecordData; tool?: string; project?: string; policy?: string; warnings?: string[]; error?: string};
+export type View = {general?: RecordData; context?: RecordData; tool?: string; project?: string; warnings?: string[]; error?: string};
 export type DocumentRoles = {accent: ColorInput; muted: ColorInput; fg: ColorInput};
 export const TUI_REASON = "edited via tui";
 
@@ -75,7 +75,6 @@ export function document(view: View): string {
   if (view.context) plainRecord(lines, view.tool || view.project || "Context", view.context);
   if (view.general) plainRecord(lines, view.general.person || "General", view.general);
   for (const warning of view.warnings || []) lines.push(`Warning: ${warning}`, "");
-  lines.push(view.policy || "Current instructions take precedence.");
   return lines.join("\n");
 }
 
@@ -111,6 +110,5 @@ export function documentStyled(view: View, roles: DocumentRoles): StyledText {
   for (const warning of view.warnings || []) {
     add(chunks, fg(roles.muted)(`Warning: ${warning}`), "\n\n");
   }
-  add(chunks, fg(roles.muted)(view.policy || "Current instructions take precedence."));
   return new StyledText(chunks);
 }

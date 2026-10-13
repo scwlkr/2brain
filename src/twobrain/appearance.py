@@ -53,8 +53,6 @@ def decorate(text, name="dark"):
             line = theme.paint("  · ", "accent") + line[2:]
         elif line.startswith("→ "):
             line = theme.paint(line, "muted")
-        elif line.startswith("Current instructions win;"):
-            line = theme.paint(line, "muted")
         elif ": " in line:
             label, value = line.split(": ", 1)
             line = theme.paint(label + ":", "accent", bold=True) + " " + value

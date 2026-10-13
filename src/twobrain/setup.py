@@ -10,12 +10,7 @@ from .gitrepo import git, lock, remote, require_ready, require_repository
 from .operations import initialize
 from .records import check_atom, validate_all
 
-CODEX_LOADER = (
-    "Coding start → run `2brain`; read/use the installed `wstack` SKILL.md unless the user opts out. "
-    "2brain supplies background context; Wstack owns workflow and wins over 2brain. "
-    "Extra context only when needed: `2brain --tool <name>`, `2brain --project <owner/repo>`; "
-    "discover with `2brain --list`. Missing tooling → continue possible work; report the blocker.\n"
-)
+CODEX_LOADER = "Coding start → run `2brain`.\n"
 
 
 def expand_remote(value):

@@ -48,36 +48,31 @@ test("document asks for the next edit when a record has no guidance and no point
   expect(document({
     context: {guidance: [], pointers: []},
     tool: "blank",
-    policy: "Current instructions win.",
   })).toBe([
     "blank",
     "",
     "No guidance yet.",
     "e writes guidance · p adds pointers · a creates a record.",
     "",
-    "Current instructions win.",
   ].join("\n"));
   expect(document({
     context: {guidance: [], pointers: [{label: "Notes", target: "notes.md"}]},
     project: "owner/repo",
-    policy: "Current instructions win.",
   })).toBe([
     "owner/repo",
     "",
     "→ Notes: notes.md",
     "",
-    "Current instructions win.",
   ].join("\n"));
 });
 
-test("document keeps title, guidance bullets, labeled pointers, and muted policy copy", () => {
+test("document keeps saved context and read warnings without a policy footer", () => {
   const plain = document({
     context: {
       guidance: ["Use local checks."],
       pointers: [{label: "Board", target: "https://example.invalid/board"}],
     },
     tool: "git",
-    policy: "Current instructions win; Wstack owns coding workflow.",
     warnings: ["stale tip"],
   });
   expect(plain).toBe([
@@ -89,7 +84,6 @@ test("document keeps title, guidance bullets, labeled pointers, and muted policy
     "",
     "Warning: stale tip",
     "",
-    "Current instructions win; Wstack owns coding workflow.",
   ].join("\n"));
 });
 

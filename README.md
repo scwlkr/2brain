@@ -1,6 +1,6 @@
 # 2brain
 
-Small, portable background context for terminal agents: identity, roles, projects, and tool/access details. Coding sessions use the installed Wstack skill unless you opt out. Wstack owns workflow and wins over 2brain; keep its principles out of context records. Your current instructions always take precedence.
+Small, portable background context for terminal agents: identity, roles, projects, and tool/access details. Reads output your saved context. Workflow instructions and skill activation come from editable records; the CLI adds no policy or instruction hierarchy.
 
 Python 3.10+ and Git 2.28+; no Python runtime packages, model, database, or server. Python's standard library keeps ordinary CLI reads portable and offline. The optional OpenTUI browser manages its own Bun runtime and locked dependencies. Separate UTF-8 JSON records validate before saving and merge through Git. Git is only required for writes/history/sync.
 
@@ -51,7 +51,7 @@ On additional computers, clone with `2brain init --remote <URL>`. Use a normal G
 
 `2brain setup owner/repo` remains optional shorthand when the remote already lives on GitHub. It also accepts a full Git URL for any host. It clones when absent and otherwise preserves the existing local copy, including manual edits. It refuses a different remote rather than silently switching datasets.
 
-Optional Codex wiring uses `--codex`. `2brain setup --codex` (with or without a remote) replaces global Codex personalization with only the short 2brain loader. It saves exact previous `AGENTS.md` and `AGENTS.override.md` bytes under the Codex home's inactive `2brain-backups/` directory, then removes the active override so the loader is used. It honors `CODEX_HOME`. Repeating setup makes no extra backup when the loader is already installed. Without `--codex`, agent instructions are untouched. Failed context initialization leaves agent instructions untouched. Restart Codex after setup so it sees the launcher and new instructions.
+Optional Codex wiring uses `--codex`. `2brain setup --codex` installs only `Coding start → run 2brain.` in global startup instructions. Workflow and skill activation remain editable context. It backs up previous `AGENTS.md` and `AGENTS.override.md` bytes under the Codex home's inactive `2brain-backups/`, then removes the active override. It honors `CODEX_HOME`; repeating setup creates no backup when unchanged. Without `--codex`, startup files stay untouched. Failed context initialization also leaves them untouched.
 
 Installation is a normal package install; it never clones personalization or edits agent instructions as an install hook. Personalization stays in your local data directory and optional remote. The git `stable` branch and the npm `stable` dist-tag advance only to published releases. Ordinary `main` commits feed the npm `dev` dist-tag. Git credential-helper behavior for uv git installs is documented by [uv](https://docs.astral.sh/uv/concepts/authentication/git/).
 
@@ -155,7 +155,7 @@ geometry, lettering, and color values are interpreted rather than exact original
 2brain --project owner/example-repo --json
 ```
 
-Discovery lists names without opening other records. General context allows six entries, 1,000 characters, and four pointers. Tool reads return just that tool; project reads include general context. JSON precedence: current instructions → Wstack → project context → general context. The `guidance` field stores background facts and lasting personal/access context, not a second workflow. Records do not execute policy. An ambiguous repository name requires `owner/repo`.
+Discovery lists names without opening other records. General context allows six entries, 1,000 characters, and four pointers. Tool reads return just that tool; project reads include general context. Text shows saved context with labels; JSON returns records and read warnings. No appended policy, inferred instruction hierarchy, or fallback workflow. The `guidance` field is user-editable text. An ambiguous repository name requires `owner/repo`.
 
 ## Deliberate updates
 

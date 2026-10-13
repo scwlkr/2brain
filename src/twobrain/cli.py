@@ -14,8 +14,6 @@ from .gitrepo import lock, remote, require_repository, status, sync
 from .records import default_home, discover, read_record, select
 from .setup import setup
 
-POLICY = "Current instructions win; Wstack owns coding workflow and wins over 2brain. 2brain supplies background context. Save only requested or explicitly lasting context."
-
 
 class ArgumentParser(argparse.ArgumentParser):
     def error(self, message):
@@ -94,14 +92,13 @@ def query(root, args):
     relative, key = select(root, kind, name)
     warnings = []
     record = read_record(root, relative, warnings)
-    output = {"policy": POLICY, "warnings": warnings}
+    output = {"warnings": warnings}
     if kind == "general":
         output["general"] = record
     elif kind == "tool":
         output.update(tool=key, context=record)
     else:
         output.update(project=key, general=read_record(root, Path("general.json"), warnings), context=record)
-        output["precedence"] = ["current_instructions", "wstack", "project", "general"]
     return output
 
 
@@ -168,8 +165,6 @@ def render_record(title, record):
     lines = [title]
     lines.extend(f"- {item}" for item in record["guidance"])
     lines.extend(f"→ {pointer['label']}: {pointer['target']}" for pointer in record["pointers"])
-    if not record["guidance"] and not record["pointers"]:
-        lines.append("No guidance saved yet.")
     return lines
 
 
@@ -177,13 +172,12 @@ def render(value):
     if "brand" in value and "palette" in value:
         return "\n".join(["2brain brand", *[f"{name}: {color}" for name, color in value["palette"].items()],
                           value["export"], value["reference"]])
-    if "policy" in value:
+    if "context" in value or isinstance(value.get("general"), dict):
         lines = []
         if "general" in value:
             lines += render_record(value["general"].get("person", "General"), value["general"])
         if "context" in value:
             lines += render_record(value.get("tool", value.get("project")), value["context"])
-        lines.append(value["policy"])
         return "\n".join(lines)
     if "tools" in value:
         return f"General: 2brain\nTools: {', '.join(value['tools']) or '(none)'}\nRepositories: {', '.join(value['projects']) or '(none)'}"
