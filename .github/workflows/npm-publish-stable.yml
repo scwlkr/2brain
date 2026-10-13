@@ -25,7 +25,7 @@ jobs:
         run: |
           if [ -z "${NODE_AUTH_TOKEN}" ]; then
             echo "NPM_TOKEN secret is not configured. Skipping publish (scaffold only)."
-            echo "Add repository secret NPM_TOKEN with publish rights for @2brain/cli."
+            echo "Add repository secret NPM_TOKEN with publish rights for @scwlkr/2brain."
             exit 0
           fi
           echo "token_present=true" >> "$GITHUB_ENV"
@@ -49,4 +49,4 @@ jobs:
           set -euo pipefail
           VER="$(node -p "require('./package.json').version")"
           npm publish --tag stable --access public
-          echo "Published @2brain/cli@${VER} with dist-tag stable"
+          echo "Published @scwlkr/2brain@${VER} with dist-tag stable"

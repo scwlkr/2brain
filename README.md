@@ -8,23 +8,23 @@ Python 3.10+ and Git 2.28+; no Python runtime packages, model, database, or serv
 
 The CLI package and your personalization data stay separate. Install the CLI from npm or from this repository. Keep context in a local data directory you own, optionally synced through any Git remote you control. No credentials belong in records or remote URLs.
 
-npm package `@2brain/cli` ships the `2brain` command. It embeds the Python CLI and runs it with Python 3.10+ from your PATH (override with `TWOBRAIN_PYTHON`). Personalization data is never part of the package.
+npm package `@scwlkr/2brain` ships the `2brain` command. It embeds the Python CLI and runs it with Python 3.10+ from your PATH (override with `TWOBRAIN_PYTHON`). Personalization data is never part of the package.
 
 Stable channel (release builds, npm dist-tag `stable`):
 
 ```sh
-npm install -g @2brain/cli@stable
+npm install -g @scwlkr/2brain@stable
 2brain init
 ```
 
 Dev channel (builds from `main`, npm dist-tag `dev`):
 
 ```sh
-npm install -g @2brain/cli@dev
+npm install -g @scwlkr/2brain@dev
 2brain --version
 ```
 
-`npx @2brain/cli@stable --version` works the same without a global install. Channel policy lives in [RELEASING.md](RELEASING.md).
+`npx @scwlkr/2brain@stable --version` works the same without a global install. Channel policy lives in [RELEASING.md](RELEASING.md).
 
 With [uv](https://docs.astral.sh/uv/guides/tools/) instead of npm:
 
@@ -58,8 +58,8 @@ Installation is a normal package install; it never clones personalization or edi
 To update npm installs:
 
 ```sh
-npm install -g @2brain/cli@stable
-npm install -g @2brain/cli@dev
+npm install -g @scwlkr/2brain@stable
+npm install -g @scwlkr/2brain@dev
 ```
 
 To update an existing uv installation from a tag or commit pin, switch to `stable` once:
@@ -76,9 +76,9 @@ uv tool upgrade twobrain-cli
 2brain --version
 ```
 
-These commands update the CLI. Run `2brain sync` to exchange personalization changes with your other computers. Updating the CLI preserves local context, pending edits, history, and agent instructions. `@2brain/cli` is the npm package name; `twobrain-cli` is the Python package name; `2brain` is the executable in both cases.
+These commands update the CLI. Run `2brain sync` to exchange personalization changes with your other computers. Updating the CLI preserves local context, pending edits, history, and agent instructions. `@scwlkr/2brain` is the npm package name; `twobrain-cli` is the Python package name; `2brain` is the executable in both cases.
 
-To select a specific git release with uv, use `uv tool install --force "git+https://github.com/scwlkr/2brain.git@v0.1.3"`. A tag or full commit SHA stays pinned when running `uv tool upgrade`; re-install with a different tag or `stable` to change it. To uninstall: `npm uninstall -g @2brain/cli` or `uv tool uninstall twobrain-cli`. Your context/history and Codex instruction backups remain available. Maintainers follow [RELEASING.md](RELEASING.md) to publish versions and advance `stable`.
+To select a specific git release with uv, use `uv tool install --force "git+https://github.com/scwlkr/2brain.git@v0.1.3"`. A tag or full commit SHA stays pinned when running `uv tool upgrade`; re-install with a different tag or `stable` to change it. To uninstall: `npm uninstall -g @scwlkr/2brain` or `uv tool uninstall twobrain-cli`. Your context/history and Codex instruction backups remain available. Maintainers follow [RELEASING.md](RELEASING.md) to publish versions and advance `stable`.
 
 Advanced source installation remains available: run `python3 install.py --prefix ~/.local` from a clone on macOS/Linux, or `py -3 install.py --prefix "$env:LOCALAPPDATA\2brain-cli"` on Windows and add the resulting `bin` directory to PATH. You can also run `python3 2brain` directly, build a standalone archive with `python3 project build`, or install with `python3 -m pip install .`.
 

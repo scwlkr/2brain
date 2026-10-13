@@ -31,7 +31,7 @@ function assert(condition, message) {
   }
 }
 
-assert(pkg.name === "@2brain/cli", `expected package name @2brain/cli, got ${pkg.name}`);
+assert(pkg.name === "@scwlkr/2brain", `expected package name @scwlkr/2brain, got ${pkg.name}`);
 assert(pkg.bin && pkg.bin["2brain"] === "bin/2brain.js", "expected bin.2brain -> bin/2brain.js");
 
 run("node", [path.join(root, "scripts/clean-pack-artifacts.mjs")]);

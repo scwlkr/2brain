@@ -1,5 +1,5 @@
 {
-  "name": "@2brain/cli",
+  "name": "@scwlkr/2brain",
   "version": "0.1.3",
   "description": "Portable, local-first personalization for terminal agents",
   "bin": {

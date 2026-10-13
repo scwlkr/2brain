@@ -25,7 +25,7 @@ jobs:
         run: |
           if [ -z "${NODE_AUTH_TOKEN}" ]; then
             echo "NPM_TOKEN secret is not configured. Skipping publish (scaffold only)."
-            echo "Add repository secret NPM_TOKEN with publish rights for @2brain/cli."
+            echo "Add repository secret NPM_TOKEN with publish rights for @scwlkr/2brain."
             exit 0
           fi
           echo "token_present=true" >> "$GITHUB_ENV"
@@ -45,4 +45,4 @@ jobs:
           DEV_VER="${PY_VER}-dev.${SHORT}"
           npm version "${DEV_VER}" --no-git-tag-version --allow-same-version
           npm publish --tag dev --access public
-          echo "Published @2brain/cli@${DEV_VER} with dist-tag dev"
+          echo "Published @scwlkr/2brain@${DEV_VER} with dist-tag dev"
