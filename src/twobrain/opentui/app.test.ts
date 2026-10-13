@@ -313,6 +313,172 @@ test("the add menu creates a tool and a project and refuses a duplicate", async 
   expect(f.backend.read(["--list"]).tools).toEqual(["ripgrep"]);
 });
 
+function replacePointerField(input: Awaited<ReturnType<typeof writableFixture>>["harness"]["mockInput"], value: string) {
+  input.pressKey("END");
+  input.pressKey("u", {ctrl: true});
+  input.typeText(value);
+  input.pressEnter();
+}
+
+test("editing a pointer saves label and target through put and escape cancels", async () => {
+  const f = await writableFixture();
+  const opened = await f.frame();
+  expect(opened).toContain("p pointers");
+  expect(opened).toContain("→ Notes: notes.md");
+  f.harness.mockInput.pressEnter();
+  expect(await f.frame()).toContain("Read ·");
+  f.harness.mockInput.pressKey("p");
+  const editing = await f.frame();
+  expect(editing).toContain("EDIT POINTERS");
+  expect(editing).toContain("Notes → notes.md");
+  expect(editing).toContain("n add");
+  f.harness.mockInput.pressEnter();
+  expect(await f.frame()).toContain("Enter next");
+  replacePointerField(f.harness.mockInput, "Docs");
+  replacePointerField(f.harness.mockInput, "docs.md");
+  const kept = await f.frame();
+  expect(kept).toContain("EDIT POINTERS");
+  expect(kept).toContain("Docs → docs.md");
+  expect(kept).toContain("Pointer kept. Ctrl+S saves.");
+  f.harness.mockInput.pressKey("s", {ctrl: true});
+  const saved = await f.frame();
+  expect(saved).toContain("Saved pointers.");
+  expect(saved).toContain("→ Docs: docs.md");
+  expect(saved).not.toContain("notes.md");
+  const disk = JSON.parse(readFileSync(join(f.root, "general.json"), "utf8"));
+  expect(disk).toEqual(f.backend.read([]).general);
+  expect(disk.guidance).toEqual(["Keep local checks."]);
+  expect(disk.person).toBe("Fixture User");
+  expect(disk.pointers).toEqual([{label: "Docs", target: "docs.md"}]);
+  const log = Bun.spawnSync(["git", "-C", f.root, "log", "-1", "--format=%s"], {env: f.env, stdout: "pipe", stderr: "pipe"});
+  expect(new TextDecoder().decode(log.stdout)).toBe("2brain: update general.json: edited via tui\n");
+
+  const before = readFileSync(join(f.root, "general.json"));
+  f.harness.mockInput.pressKey("p");
+  f.harness.mockInput.pressEnter();
+  f.harness.mockInput.pressKey("END");
+  f.harness.mockInput.pressKey("u", {ctrl: true});
+  f.harness.mockInput.typeText("Nope");
+  f.harness.mockInput.pressEscape();
+  await Bun.sleep(80);
+  const unchanged = await f.frame();
+  expect(unchanged).toContain("Pointer unchanged.");
+  expect(unchanged).toContain("Docs → docs.md");
+  expect(unchanged).not.toContain("Nope");
+  f.harness.mockInput.pressEscape();
+  await Bun.sleep(80);
+  expect(await f.frame()).toContain("Edit cancelled.");
+  expect(readFileSync(join(f.root, "general.json"))).toEqual(before);
+});
+
+test("adding and removing a pointer updates the record and escape drops unsaved rows", async () => {
+  const f = await writableFixture();
+  f.harness.mockInput.pressKey("p");
+  expect(await f.frame()).toContain("Notes → notes.md");
+  f.harness.mockInput.pressKey("n");
+  expect(await f.frame()).toContain("Enter next");
+  f.harness.mockInput.typeText("Ghost");
+  f.harness.mockInput.pressEscape();
+  await Bun.sleep(80);
+  const dropped = await f.frame();
+  expect(dropped).toContain("Add cancelled.");
+  expect(dropped).toContain("Notes → notes.md");
+  expect(dropped).not.toContain("Ghost");
+  f.harness.mockInput.pressKey("n");
+  f.harness.mockInput.typeText("Extra");
+  f.harness.mockInput.pressEnter();
+  f.harness.mockInput.typeText("extra.md");
+  f.harness.mockInput.pressEnter();
+  const listed = await f.frame();
+  expect(listed).toContain("Notes → notes.md");
+  expect(listed).toContain("Extra → extra.md");
+  f.harness.mockInput.pressEnter({meta: true});
+  const saved = await f.frame();
+  expect(saved).toContain("Saved pointers.");
+  expect(saved).toContain("→ Extra: extra.md");
+  const disk = JSON.parse(readFileSync(join(f.root, "general.json"), "utf8"));
+  expect(disk).toEqual(f.backend.read([]).general);
+  expect(disk.guidance).toEqual(["Keep local checks."]);
+  expect(disk.person).toBe("Fixture User");
+  expect(disk.pointers).toEqual([
+    {label: "Notes", target: "notes.md"},
+    {label: "Extra", target: "extra.md"},
+  ]);
+  const log = Bun.spawnSync(["git", "-C", f.root, "log", "-1", "--format=%s"], {env: f.env, stdout: "pipe", stderr: "pipe"});
+  expect(new TextDecoder().decode(log.stdout)).toBe("2brain: update general.json: edited via tui\n");
+
+  const before = readFileSync(join(f.root, "general.json"));
+  f.harness.mockInput.pressKey("p");
+  f.harness.mockInput.pressArrow("down");
+  f.harness.mockInput.pressKey("d");
+  const removed = await f.frame();
+  expect(removed).toContain("Pointer removed. Ctrl+S saves.");
+  expect(removed).toContain("Notes → notes.md");
+  expect(removed).not.toContain("Extra → extra.md");
+  f.harness.mockInput.pressEscape();
+  await Bun.sleep(80);
+  expect(await f.frame()).toContain("→ Extra: extra.md");
+  expect(readFileSync(join(f.root, "general.json"))).toEqual(before);
+
+  f.harness.mockInput.pressKey("p");
+  f.harness.mockInput.pressArrow("down");
+  f.harness.mockInput.pressKey("d");
+  f.harness.mockInput.pressKey("s", {ctrl: true});
+  const afterDelete = await f.frame();
+  expect(afterDelete).toContain("Saved pointers.");
+  expect(afterDelete).toContain("→ Notes: notes.md");
+  expect(afterDelete).not.toContain("extra.md");
+  const remaining = JSON.parse(readFileSync(join(f.root, "general.json"), "utf8"));
+  expect(remaining).toEqual(f.backend.read([]).general);
+  expect(remaining.guidance).toEqual(["Keep local checks."]);
+  expect(remaining.person).toBe("Fixture User");
+  expect(remaining.pointers).toEqual([{label: "Notes", target: "notes.md"}]);
+});
+
+test("pointer add refuses the general cap of 4 and the specific cap of 8", async () => {
+  const f = await writableFixture();
+  f.backend.write({kind: "general", name: "General"}, {
+    schema_version: 1,
+    person: "Fixture User",
+    guidance: ["Keep local checks."],
+    pointers: [1, 2, 3, 4].map(n => ({label: `P${n}`, target: `p${n}.md`})),
+  });
+  f.harness.mockInput.pressKey("r");
+  f.harness.mockInput.pressKey("p");
+  const general = await f.frame();
+  expect(general).toContain("EDIT POINTERS");
+  expect(general).toContain("P4 → p4.md");
+  const generalBefore = readFileSync(join(f.root, "general.json"));
+  f.harness.mockInput.pressKey("n");
+  const generalRefused = await f.frame();
+  expect(generalRefused).toContain("EDIT POINTERS");
+  expect(generalRefused).toContain("At most 4 pointers.");
+  expect(generalRefused).toContain("P1 → p1.md");
+  expect(readFileSync(join(f.root, "general.json"))).toEqual(generalBefore);
+  f.harness.mockInput.pressEscape();
+  await Bun.sleep(80);
+
+  f.backend.write({kind: "project", name: "owner/repo"}, {
+    schema_version: 1,
+    guidance: ["Project line."],
+    pointers: [1, 2, 3, 4, 5, 6, 7, 8].map(n => ({label: `Q${n}`, target: `https://example.invalid/${n}`})),
+  });
+  f.harness.mockInput.pressKey("r");
+  f.harness.mockInput.pressArrow("down");
+  f.harness.mockInput.pressKey("p");
+  const project = await f.frame();
+  expect(project).toContain("EDIT POINTERS");
+  expect(project).toContain("Q8 → https://example.invalid/8");
+  const projectBefore = readFileSync(join(f.root, "projects/owner/repo.json"));
+  f.harness.mockInput.pressKey("n");
+  const projectRefused = await f.frame();
+  expect(projectRefused).toContain("EDIT POINTERS");
+  expect(projectRefused).toContain("At most 8 pointers.");
+  expect(projectRefused).toContain("Q1 → https://example.invalid/1");
+  expect(readFileSync(join(f.root, "projects/owner/repo.json"))).toEqual(projectBefore);
+  expect(readFileSync(join(f.root, "general.json"))).toEqual(generalBefore);
+});
+
 test("NO_COLOR presentation retains default foreground and background for content",async () => {
   const f=await fixture(100,24,false); await f.frame();
   const spans=f.harness.captureSpans().lines.flatMap(line=>line.spans);
