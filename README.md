@@ -122,8 +122,8 @@ See the [OpenTUI development instructions](src/twobrain/opentui/README.md).
 
 Use arrows, `j`, or `k` to browse, `/` to filter record names, Enter to read on narrow
 terminals, Tab to change focus, Page Up/Down to scroll, `r` to refresh, and `q` to
-quit. Press `e` to edit the selected record's guidance. Press `a` to create a tool
-record or a project record (`owner/repo`). In the editor, Enter inserts a line.
+quit. Press `e` to edit the selected record's guidance. Press `p` to edit its pointers.
+Press `a` to create a tool record or a project record (`owner/repo`). In the editor, Enter inserts a line.
 A blank line starts another guidance entry. Alt+Enter or Ctrl+S saves. Escape
 cancels an edit or a new record. Escape also clears a search or returns from a
 record. A save commits locally through `put` with the reason `edited via tui`.
@@ -161,7 +161,7 @@ Discovery lists names without opening other records. Default guidance allows at 
 
 Use the user's actual request or explicit lasting preference as the reason. Do not save inferred preferences, suggestions, experiments, or assistant-generated examples.
 
-In `2brain tui`, `e` edits guidance and `a` creates a tool or project record. That save uses the reason `edited via tui` and the same validation as `put`. Agents continue to use `put`, `remove`, and `save` with the user's own reason.
+In `2brain tui`, `e` edits guidance, `p` edits pointers, and `a` creates a tool or project record. That save uses the reason `edited via tui` and the same validation as `put`. Agents continue to use `put`, `remove`, and `save` with the user's own reason.
 
 `2brain edit` opens one record as JSON in VS Code. Use it when you want the raw record:
 

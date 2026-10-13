@@ -22,6 +22,8 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
   let motion: Timeline | null = null;
   type Screen = {name: "browse" | "search" | "read"}
     | {name: "edit"; entry: Entry; pointers: StoredRecord["pointers"]; person?: string}
+    | {name: "pointers"; entry: Entry; guidance: string[]; person?: string;
+       pointers: {label: string; target: string}[]; focus: "list" | "label" | "target"}
     | {name: "add"}
     | {name: "name"; kind: "tool" | "project"};
   let screen: Screen = {name: "browse"};
@@ -63,9 +65,26 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     placeholder: "name", placeholderColor: muted, cursorColor: fg, textColor: fg,
     backgroundColor: bg, focusedBackgroundColor: bg, focusedTextColor: accent,
   });
+  const pointerList = new SelectRenderable(renderer, {
+    id: "pointer-list", width: "100%", flexGrow: 0, height: 0, visible: false,
+    backgroundColor: bg, focusedBackgroundColor: bg, textColor: fg, focusedTextColor: accent,
+    selectedBackgroundColor: settings.color ? p.sage : bg, selectedTextColor: settings.color ? p.ink : fg,
+    showDescription: false, showSelectionIndicator: true,
+    options: [],
+  });
+  const labelInput = new InputRenderable(renderer, {
+    id: "pointer-label", visible: false, flexShrink: 0,
+    placeholder: "label", placeholderColor: muted, cursorColor: fg, textColor: fg,
+    backgroundColor: bg, focusedBackgroundColor: bg, focusedTextColor: accent,
+  });
+  const targetInput = new InputRenderable(renderer, {
+    id: "pointer-target", visible: false, flexShrink: 0,
+    placeholder: "target", placeholderColor: muted, cursorColor: fg, textColor: fg,
+    backgroundColor: bg, focusedBackgroundColor: bg, focusedTextColor: accent,
+  });
   const status = new TextRenderable(renderer, {id: "status", fg: muted, height: 1, marginTop: 1, flexShrink: 0});
   const help = new TextRenderable(renderer, {id: "help", fg: muted, height: 1, flexShrink: 0});
-  for (const item of [heading, caption, search, body, editor, addMenu, nameInput, status, help]) root.add(item);
+  for (const item of [heading, caption, search, body, editor, addMenu, nameInput, pointerList, labelInput, targetInput, status, help]) root.add(item);
 
   function entryKey(entry: Entry) {
     return `${entry.kind}:${entry.name}`;
@@ -105,7 +124,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
   }
 
   function modeLabel() {
-    if (screen.name === "edit") return "Edit";
+    if (screen.name === "edit" || screen.name === "pointers") return "Edit";
     if (screen.name === "add" || screen.name === "name") return "New";
     if (screen.name === "search") return "Search";
     if (screen.name === "read") return "Read";
@@ -123,12 +142,15 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     const editing = screen.name === "edit";
     const adding = screen.name === "add";
     const naming = screen.name === "name";
-    const overlay = editing || adding || naming;
+    const pointing = screen.name === "pointers";
+    const pointingFields = screen.name === "pointers" && screen.focus !== "list";
+    const pointerRows = screen.name === "pointers" ? screen.pointers.length : 0;
+    const overlay = editing || adding || naming || pointing;
     const reading = screen.name === "read";
     const searching = screen.name === "search";
     heading.content = narrow ? "2brain / local context" : "2brain / your context, close at hand";
-    caption.content = editing ? "EDIT GUIDANCE" : adding || naming ? "NEW RECORD" : "LOCAL CONTEXT / EDITABLE";
-    caption.fg = editing || adding || naming || reading ? accent : muted;
+    caption.content = editing ? "EDIT GUIDANCE" : pointing ? "EDIT POINTERS" : adding || naming ? "NEW RECORD" : "LOCAL CONTEXT / EDITABLE";
+    caption.fg = editing || adding || naming || pointing || reading ? accent : muted;
     search.visible = !overlay;
     body.visible = !overlay;
     editor.visible = editing;
@@ -139,6 +161,13 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     addMenu.height = adding ? Math.max(4, renderer.height - 8) : 0;
     nameInput.visible = naming;
     nameInput.height = naming ? 1 : 0;
+    pointerList.visible = pointing;
+    pointerList.flexGrow = pointing && !pointingFields ? 1 : 0;
+    pointerList.height = !pointing ? 0 : pointingFields ? Math.min(6, Math.max(3, pointerRows || 1)) : Math.max(4, renderer.height - 8);
+    labelInput.visible = pointingFields;
+    targetInput.visible = pointingFields;
+    labelInput.height = pointingFields ? 1 : 0;
+    targetInput.height = pointingFields ? 1 : 0;
     if (!overlay) {
       list.visible = !narrow || !reading;
       detail.visible = !narrow || reading;
@@ -147,12 +176,18 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
       detail.borderColor = reading ? accent : line;
       detail.paddingLeft = narrow ? 0 : 2;
     }
-    help.content = editing ? "Alt+Enter or Ctrl+S save · Esc cancel"
+    help.content = pointing
+      ? pointingFields
+        ? "Enter next · Esc back · Alt+Enter or Ctrl+S save"
+        : "↑↓ select · Enter edit · n add · d delete · Alt+Enter or Ctrl+S save · Esc cancel"
+      : editing ? "Alt+Enter or Ctrl+S save · Esc cancel"
       : adding ? "↑↓ choose · Enter select · Esc cancel"
       : naming ? "Enter create · Esc cancel"
       : searching ? "Enter apply · Esc clear · Ctrl+C quit" : narrow
-      ? reading ? "↑↓ scroll · Esc back · q quit" : "↑↓ · Enter read · type filter · e edit · a add · q quit"
-      : `↑↓ ${reading ? "scroll" : "browse"} · Tab ${reading ? "browse" : "read"} · type filter · e edit · a add · PgUp/PgDn scroll · r refresh · q quit`;
+      ? reading ? "↑↓ scroll · Esc back · q quit" : "↑↓ · Enter read · type filter · e edit · p pointers · a add · q quit"
+      : reading
+      ? "↑↓ scroll · Tab browse · e edit · p pointers · a add · PgUp/PgDn scroll · r refresh · q quit"
+      : "↑↓ browse · Tab read · type filter · e edit · p pointers · a add · PgUp/PgDn · r refresh · q quit";
   }
 
   function selection() {
@@ -198,6 +233,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     stopMotion();
     editor.opacity = 1;
     addMenu.opacity = 1;
+    pointerList.opacity = 1;
     detail.opacity = 1;
     status.opacity = 1;
     screen = {name: "browse"};
@@ -301,6 +337,156 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     beginEdit();
   }
 
+  function syncPointerList(index: number) {
+    if (screen.name !== "pointers") return;
+    const rows = screen.pointers;
+    pointerList.options = rows.length
+      ? rows.map(pointer => ({
+          name: pointer.label || pointer.target ? `${pointer.label} → ${pointer.target}` : "New pointer",
+          description: "",
+          value: pointer,
+        }))
+      : [{name: "No pointers yet", description: "", value: ""}];
+    pointerList.setSelectedIndex(Math.max(0, Math.min(index, pointerList.options.length - 1)));
+  }
+
+  function beginPointers() {
+    const entry = visible[list.getSelectedIndex()];
+    if (!entry) { flashStatus("No record selected."); return; }
+    const view = cachedView(entry);
+    const data = view.context ?? view.general;
+    if (view.error || !data) { flashStatus(view.error || "No record to edit."); return; }
+    screen = {
+      name: "pointers",
+      entry,
+      guidance: data.guidance,
+      person: data.person,
+      pointers: (data.pointers ?? []).map(pointer => ({label: pointer.label, target: pointer.target})),
+      focus: "list",
+    };
+    syncPointerList(0);
+    layout();
+    pointerList.opacity = 1;
+    pointerList.paddingLeft = 3;
+    pointerList.focus();
+    status.fg = accent;
+    status.content = screen.pointers.length ? "Enter edits a pointer. n adds one." : "No pointers yet. n adds one.";
+    status.opacity = 0.35;
+    playMotion(timeline => {
+      timeline.add(pointerList, {paddingLeft: 0, duration: 120, ease: "outQuad"});
+      timeline.add(status, {opacity: 1, duration: 90, ease: "outQuad"});
+    });
+  }
+
+  function editPointerRow(index: number) {
+    if (screen.name !== "pointers") return;
+    const row = screen.pointers[index];
+    if (!row) return;
+    labelInput.value = row.label;
+    targetInput.value = row.target;
+    screen = {...screen, focus: "label"};
+    layout();
+    labelInput.focus();
+    flashStatus("Label", "accent");
+  }
+
+  function addPointer() {
+    if (screen.name !== "pointers" || screen.focus !== "list") return;
+    const cap = screen.entry.kind === "general" ? 4 : 8;
+    if (screen.pointers.length >= cap) {
+      flashStatus(`At most ${cap} pointers.`);
+      return;
+    }
+    const pointers = [...screen.pointers, {label: "", target: ""}];
+    screen = {...screen, pointers, focus: "label"};
+    syncPointerList(pointers.length - 1);
+    labelInput.value = "";
+    targetInput.value = "";
+    layout();
+    labelInput.focus();
+    flashStatus("Label", "accent");
+  }
+
+  function focusPointerField(focus: "label" | "target", message: string) {
+    if (screen.name !== "pointers") return;
+    screen = {...screen, focus};
+    layout();
+    (focus === "label" ? labelInput : targetInput).focus();
+    flashStatus(message);
+  }
+
+  function commitOpenPointer() {
+    if (screen.name !== "pointers" || screen.focus === "list") return true;
+    const index = pointerList.getSelectedIndex();
+    if (!screen.pointers[index]) return false;
+    const label = labelInput.value.trim();
+    const target = targetInput.value.trim();
+    if (!label) { focusPointerField("label", "Enter a label."); return false; }
+    if (!target) { focusPointerField("target", "Enter a target."); return false; }
+    const pointers = screen.pointers.slice();
+    pointers[index] = {label, target};
+    screen = {...screen, pointers, focus: "list"};
+    labelInput.value = "";
+    targetInput.value = "";
+    syncPointerList(index);
+    return true;
+  }
+
+  function cancelPointerField() {
+    if (screen.name !== "pointers") return;
+    const index = pointerList.getSelectedIndex();
+    const row = screen.pointers[index];
+    const dropped = !!row && !row.label && !row.target;
+    const pointers = dropped ? screen.pointers.filter((_, item) => item !== index) : screen.pointers;
+    screen = {...screen, pointers, focus: "list"};
+    labelInput.value = "";
+    targetInput.value = "";
+    syncPointerList(Math.max(0, Math.min(index, pointers.length - 1)));
+    layout();
+    pointerList.focus();
+    flashStatus(dropped ? "Add cancelled." : "Pointer unchanged.");
+  }
+
+  function deletePointer() {
+    if (screen.name !== "pointers" || screen.focus !== "list") return;
+    if (!screen.pointers.length) { flashStatus("No pointer to remove."); return; }
+    const index = pointerList.getSelectedIndex();
+    const pointers = screen.pointers.filter((_, item) => item !== index);
+    screen = {...screen, pointers};
+    syncPointerList(Math.max(0, Math.min(index, pointers.length - 1)));
+    flashStatus("Pointer removed. Ctrl+S saves.");
+  }
+
+  function savePointers() {
+    if (screen.name !== "pointers") return;
+    if (!commitOpenPointer()) return;
+    if (screen.name !== "pointers") return;
+    const record: StoredRecord = {schema_version: 1, guidance: screen.guidance, pointers: screen.pointers};
+    if (screen.person) record.person = screen.person;
+    const entry = screen.entry;
+    try { backend.write(entry, record); }
+    catch (error) {
+      layout();
+      pointerList.focus();
+      flashStatus(error instanceof Error ? error.message : String(error));
+      return;
+    }
+    invalidateViews(entry);
+    entries = backend.entries();
+    showBrowse();
+    filter();
+    const index = visible.findIndex(item => item.kind === entry.kind && item.name === entry.name);
+    if (index >= 0) list.setSelectedIndex(index);
+    selection();
+    flashStatus("Saved pointers.", "accent");
+  }
+
+  function openSelectedPointer() {
+    if (screen.name !== "pointers" || screen.focus !== "list") return;
+    if (!screen.pointers.length) addPointer();
+    else editPointerRow(pointerList.getSelectedIndex());
+  }
+
   function key(key: KeyEvent) {
     if (key.ctrl && key.name === "c") { renderer.destroy(); return; }
     if (screen.name === "edit") {
@@ -317,6 +503,27 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
       else if (key.name === "return" || key.name === "linefeed") { createNamed(); key.preventDefault(); }
       return;
     }
+    if (screen.name === "pointers") {
+      const save = (key.ctrl && key.name === "s") || (key.meta && (key.name === "return" || key.name === "linefeed" || key.name === "kpenter"));
+      if (key.name === "escape") {
+        if (screen.focus === "list") leaveToBrowse("Edit cancelled.");
+        else cancelPointerField();
+        key.preventDefault();
+      } else if (save) {
+        savePointers();
+        key.preventDefault();
+      } else if (screen.focus === "list" && !key.ctrl && !key.meta && !key.shift && key.name === "n") {
+        addPointer();
+        key.preventDefault();
+      } else if (screen.focus === "list" && !key.ctrl && !key.meta && !key.shift && key.name === "d") {
+        deletePointer();
+        key.preventDefault();
+      } else if (screen.focus === "list" && !key.ctrl && !key.meta && !key.shift && (key.name === "return" || key.name === "linefeed" || key.name === "kpenter")) {
+        openSelectedPointer();
+        key.preventDefault();
+      }
+      return;
+    }
     if (screen.name === "search") {
       if (key.name === "escape") { search.value = ""; filter(); focus("list"); key.preventDefault(); }
       else if (key.name === "return" || key.name === "linefeed") { focus("list"); key.preventDefault(); }
@@ -326,6 +533,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     if (key.name === "q") renderer.destroy();
     else if (key.name === "e" && !key.ctrl && !key.meta && !key.shift) beginEdit();
     else if (key.name === "a" && !key.ctrl && !key.meta && !key.shift) beginAdd();
+    else if (key.name === "p" && !key.ctrl && !key.meta && !key.shift) beginPointers();
     else if (key.name === "/") focus("search");
     else if (key.name === "tab") focus(reading ? "list" : "detail");
     else if (key.name === "return" || key.name === "right") focus("detail");
@@ -362,6 +570,22 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
   addMenu.on(SelectRenderableEvents.ITEM_SELECTED, (_index, option) => {
     if (screen.name !== "add") return;
     beginName(option.value === "project" ? "project" : "tool");
+  });
+  pointerList.on(SelectRenderableEvents.ITEM_SELECTED, () => openSelectedPointer());
+  labelInput.on(InputRenderableEvents.ENTER, () => {
+    if (screen.name !== "pointers" || screen.focus !== "label") return;
+    if (!labelInput.value.trim()) { flashStatus("Enter a label."); return; }
+    screen = {...screen, focus: "target"};
+    layout();
+    targetInput.focus();
+    flashStatus("Target", "accent");
+  });
+  targetInput.on(InputRenderableEvents.ENTER, () => {
+    if (screen.name !== "pointers" || screen.focus !== "target") return;
+    if (!commitOpenPointer()) return;
+    layout();
+    pointerList.focus();
+    flashStatus("Pointer kept. Ctrl+S saves.");
   });
   renderer.keyInput.on("keypress", key);
   renderer.on("resize", layout);
