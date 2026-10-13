@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "twobrain-cli"
+version = "0.1.3"
+description = "Portable, local-first personalization for terminal agents"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+2brain = "twobrain.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["twobrain*"]
+
+[tool.setuptools.package-data]
+twobrain = ["brand/*", "brand/**/*", "brand/.wstack-brand/*", "brand/.wstack-brand/downloads/*", "opentui/*.ts", "opentui/*.json", "opentui/*.md", "opentui/bun.lock"]

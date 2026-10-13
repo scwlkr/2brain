@@ -1,0 +1,52 @@
+name: npm publish stable
+
+on:
+  push:
+    branches: [stable]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+
+      - name: Require NPM_TOKEN
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "NPM_TOKEN secret is not configured. Skipping publish (scaffold only)."
+            echo "Add repository secret NPM_TOKEN with publish rights for @scwlkr/2brain."
+            exit 0
+          fi
+          echo "token_present=true" >> "$GITHUB_ENV"
+
+      - name: Align package.json version
+        if: env.token_present == 'true'
+        run: |
+          set -euo pipefail
+          PY_VER="$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
+          npm version "${PY_VER}" --no-git-tag-version --allow-same-version
+
+      - name: Verify pack
+        if: env.token_present == 'true'
+        run: node scripts/verify-npm-pack.mjs
+
+      - name: Publish @stable
+        if: env.token_present == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          VER="$(node -p "require('./package.json').version")"
+          npm publish --tag stable --access public
+          echo "Published @scwlkr/2brain@${VER} with dist-tag stable"

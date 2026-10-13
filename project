@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""Local Python/OpenTUI checks and standalone builds; no hosted CI."""
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import zipapp
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+
+
+def build(destination):
+    destination = destination.expanduser().absolute()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="2brain-build-") as temporary:
+        staging = Path(temporary)
+        package = staging / "twobrain"
+        package.mkdir()
+        sources = ROOT / "src/twobrain"
+        for source in sources.rglob("*"):
+            if source.is_file() and not {"__pycache__", "node_modules"}.intersection(source.parts) and source.suffix != ".pyc":
+                target = package / source.relative_to(sources)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(source.read_bytes())
+        zipapp.create_archive(staging, target=destination, interpreter="/usr/bin/env python3",
+                              main="twobrain.cli:main", compressed=True)
+    print(destination)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("action", choices=["check", "test", "build", "tui-check", "tui-setup"])
+    parser.add_argument("--output", type=Path, default=ROOT / "dist/2brain.pyz")
+    args = parser.parse_args()
+    if args.action == "tui-setup":
+        return subprocess.run([sys.executable, str(ROOT / "2brain"), "tui", "--setup"]).returncode
+    if args.action in {"check", "test"}:
+        env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+        result = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"], cwd=ROOT, env=env)
+        if result.returncode:
+            return result.returncode
+    if args.action in {"check", "test", "tui-check"}:
+        result = tui_check()
+        if result:
+            return result
+    if args.action in {"check", "build"}:
+        build(args.output)
+        subprocess.run([sys.executable, str(args.output), "--version"], check=True)
+    if args.action == "check":
+        result = npm_pack_check()
+        if result:
+            return result
+    return 0
+
+
+def npm_pack_check():
+    script = ROOT / "scripts/verify-npm-pack.mjs"
+    if not script.is_file():
+        return 0
+    node = shutil.which("node")
+    if not node:
+        print("skip npm pack verify: node not on PATH")
+        return 0
+    return subprocess.run([node, str(script)], cwd=ROOT).returncode
+
+
+def tui_check():
+    import json
+    sys.path.insert(0, str(ROOT / "src"))
+    from twobrain.tui import backend_command
+    from twobrain.tui_runtime import prepare
+    bun, app, _ = prepare(development=True)
+    env = dict(os.environ, TWOBRAIN_TEST_BACKEND=json.dumps(backend_command(ROOT)[:-2]))
+    for command in ([str(bun), "run", "typecheck"], [str(bun), "test"]):
+        result = subprocess.run(command, cwd=app, env=env)
+        if result.returncode:
+            return result.returncode
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,121 @@
+{
+  "assets": [
+    {
+      "file": "symbols/mark-ink.svg",
+      "title": "Ink mark",
+      "category": "Symbols",
+      "notes": "Editable path reconstruction of the supplied board.",
+      "role": "current",
+      "tags": [
+        "logo",
+        "mark",
+        "ink"
+      ]
+    },
+    {
+      "file": "symbols/wordmark-ink.svg",
+      "title": "Ink wordmark",
+      "category": "Symbols",
+      "notes": "Editable path reconstruction of the supplied board.",
+      "role": "current",
+      "tags": [
+        "logo",
+        "wordmark",
+        "ink"
+      ]
+    },
+    {
+      "file": "icons/app-ink.svg",
+      "title": "Ink app icon",
+      "category": "Icons",
+      "notes": "Flat vector master with generous rounded corners.",
+      "role": "current",
+      "tags": [
+        "icon",
+        "ink"
+      ]
+    },
+    {
+      "file": "symbols/mark-paper.svg",
+      "title": "Paper mark",
+      "category": "Symbols",
+      "notes": "Editable path reconstruction of the supplied board.",
+      "role": "current",
+      "tags": [
+        "logo",
+        "mark",
+        "paper"
+      ]
+    },
+    {
+      "file": "symbols/wordmark-paper.svg",
+      "title": "Paper wordmark",
+      "category": "Symbols",
+      "notes": "Editable path reconstruction of the supplied board.",
+      "role": "current",
+      "tags": [
+        "logo",
+        "wordmark",
+        "paper"
+      ]
+    },
+    {
+      "file": "icons/app-paper.svg",
+      "title": "Paper app icon",
+      "category": "Icons",
+      "notes": "Flat vector master with generous rounded corners.",
+      "role": "current",
+      "tags": [
+        "icon",
+        "paper"
+      ]
+    },
+    {
+      "file": "symbols/mark-sage.svg",
+      "title": "Sage mark",
+      "category": "Symbols",
+      "notes": "Editable path reconstruction of the supplied board.",
+      "role": "current",
+      "tags": [
+        "logo",
+        "mark",
+        "sage"
+      ]
+    },
+    {
+      "file": "symbols/wordmark-sage.svg",
+      "title": "Sage wordmark",
+      "category": "Symbols",
+      "notes": "Editable path reconstruction of the supplied board.",
+      "role": "current",
+      "tags": [
+        "logo",
+        "wordmark",
+        "sage"
+      ]
+    },
+    {
+      "file": "icons/app-sage.svg",
+      "title": "Sage app icon",
+      "category": "Icons",
+      "notes": "Flat vector master with generous rounded corners.",
+      "role": "current",
+      "tags": [
+        "icon",
+        "sage"
+      ]
+    },
+    {
+      "file": "references/brand-board.svg",
+      "title": "Supplied-board reconstruction",
+      "category": "References",
+      "notes": "Interpreted from the user-supplied preview. The exact original image was not accessible as a file.",
+      "role": "reference",
+      "tags": [
+        "board",
+        "identity",
+        "reconstruction"
+      ]
+    }
+  ]
+}
