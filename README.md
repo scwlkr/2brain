@@ -16,7 +16,7 @@ Use your existing Git/GitHub authentication. No credentials belong in records or
 With [uv](https://docs.astral.sh/uv/guides/tools/) installed, setup is two commands on macOS, Windows or Linux:
 
 ```sh
-uv tool install "git+https://github.com/scwlkr/2brain@stable"
+uv tool install "git+https://github.com/scwlkr/2brain.git@stable"
 2brain setup scwlkr/2brain-context --codex
 ```
 
@@ -33,7 +33,7 @@ Installation is a normal package install; it never clones personalization or edi
 To update an existing installation from a tag or commit pin, switch to `stable` once:
 
 ```sh
-uv tool install --force "git+https://github.com/scwlkr/2brain@stable"
+uv tool install --force --refresh "git+https://github.com/scwlkr/2brain.git@stable"
 2brain --version
 ```
 
@@ -46,7 +46,7 @@ uv tool upgrade twobrain-cli
 
 These commands update the CLI. Run `2brain sync` to exchange personalization changes with your other computers. Updating the CLI preserves local context, pending edits, history, and agent instructions. `twobrain-cli` is the package name; `2brain` is its executable.
 
-To select a specific release, use `uv tool install --force "git+https://github.com/scwlkr/2brain@v0.1.2"`. A tag or full commit SHA stays pinned when running `uv tool upgrade`; re-install with a different tag or `stable` to change it. To uninstall the CLI: `uv tool uninstall twobrain-cli`. Your context/history and Codex instruction backups remain available. Maintainers follow [RELEASING.md](RELEASING.md) to publish versions and advance `stable`.
+To select a specific release, use `uv tool install --force "git+https://github.com/scwlkr/2brain.git@v0.1.3"`. A tag or full commit SHA stays pinned when running `uv tool upgrade`; re-install with a different tag or `stable` to change it. To uninstall the CLI: `uv tool uninstall twobrain-cli`. Your context/history and Codex instruction backups remain available. Maintainers follow [RELEASING.md](RELEASING.md) to publish versions and advance `stable`.
 
 Advanced source installation remains available: run `python3 install.py --prefix ~/.local` from a clone on macOS/Linux, or `py -3 install.py --prefix "$env:LOCALAPPDATA\2brain-cli"` on Windows and add the resulting `bin` directory to PATH. You can also run `python3 2brain` directly, build a standalone archive with `python3 project build`, or install with `python3 -m pip install .`.
 
@@ -79,11 +79,10 @@ checksum for Bun, and a frozen dependency lockfile. Later launches use the retai
 runtime and work offline. Prepare and diagnose it separately with
 `2brain tui --setup --json`. `TWOBRAIN_TUI_CACHE` can select another writable cache.
 
-Until these changes are released on `stable`, update an existing installation
-on your computer from this review branch, then open the browser:
+Update an existing installation on your computer from `stable`, then open the browser:
 
 ```sh
-uv tool install --force --refresh "git+https://github.com/scwlkr/2brain.git@codex/2brain-terminal-brand"
+uv tool install --force --refresh "git+https://github.com/scwlkr/2brain.git@stable"
 2brain tui --setup
 2brain tui
 ```

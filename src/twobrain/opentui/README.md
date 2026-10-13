@@ -13,7 +13,7 @@ passed by the Python launcher.
 ## Install and run on your computer
 
 ```sh
-uv tool install --force --refresh "git+https://github.com/scwlkr/2brain.git@codex/2brain-terminal-brand"
+uv tool install --force --refresh "git+https://github.com/scwlkr/2brain.git@stable"
 2brain tui --setup --json
 2brain tui
 ```

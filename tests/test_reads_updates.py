@@ -124,7 +124,7 @@ class ReadsAndUpdates(Scenario):
         result = subprocess.run([str(launcher), "--version"], env=self.env,
                                 capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("2brain 0.1.2", result.stdout)
+        self.assertIn("2brain 0.1.3", result.stdout)
 
     def test_untrusted_symlink_cannot_mutate_external_record(self):
         if sys.platform == "win32":
