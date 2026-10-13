@@ -1,0 +1,34 @@
+{
+  "name": "@2brain/cli",
+  "version": "0.1.3",
+  "description": "Portable, local-first personalization for terminal agents",
+  "bin": {
+    "2brain": "bin/2brain.js"
+  },
+  "files": [
+    "bin/",
+    "src/twobrain/",
+    "2brain",
+    "pyproject.toml",
+    "README.md"
+  ],
+  "scripts": {
+    "prepack": "node scripts/clean-pack-artifacts.mjs",
+    "verify-pack": "node scripts/verify-npm-pack.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scwlkr/2brain.git"
+  },
+  "bugs": {
+    "url": "https://github.com/scwlkr/2brain/issues"
+  },
+  "homepage": "https://github.com/scwlkr/2brain#readme",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
