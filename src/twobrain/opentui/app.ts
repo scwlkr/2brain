@@ -29,7 +29,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
   renderer.root.add(root);
   const heading = new TextRenderable(renderer, {id: "heading", content: "2brain / your context, close at hand", fg: accent, height: 1, flexShrink: 0});
   const caption = new TextRenderable(renderer, {id: "caption", content: "LOCAL CONTEXT / EDITABLE", fg: muted, height: 1, marginBottom: 1, flexShrink: 0});
-  const search = new InputRenderable(renderer, {id: "search", placeholder: "/ search records", placeholderColor: muted, cursorColor: fg, textColor: fg, backgroundColor: bg, focusedBackgroundColor: bg, focusedTextColor: accent, marginBottom: 1});
+  const search = new InputRenderable(renderer, {id: "search", placeholder: "type to filter", placeholderColor: muted, cursorColor: fg, textColor: fg, backgroundColor: bg, focusedBackgroundColor: bg, focusedTextColor: accent, marginBottom: 1});
   const body = new BoxRenderable(renderer, {id: "body", flexDirection: "row", flexGrow: 1, minHeight: 0});
   const list = new SelectRenderable(renderer, {id: "records", width: 32, flexShrink: 0, height: "100%",
     backgroundColor: bg, focusedBackgroundColor: bg, textColor: muted, focusedTextColor: fg,
@@ -151,15 +151,15 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
       : adding ? "↑↓ choose · Enter select · Esc cancel"
       : naming ? "Enter create · Esc cancel"
       : searching ? "Enter apply · Esc clear · Ctrl+C quit" : narrow
-      ? reading ? "↑↓ scroll · Esc back · q quit" : "↑↓ · Enter read · e edit · a add · q quit"
-      : `↑↓ ${reading ? "scroll" : "browse"} · Tab ${reading ? "browse" : "read"} · / search · e edit · a add · PgUp/PgDn scroll · r refresh · q quit`;
+      ? reading ? "↑↓ scroll · Esc back · q quit" : "↑↓ · Enter read · type filter · e edit · a add · q quit"
+      : `↑↓ ${reading ? "scroll" : "browse"} · Tab ${reading ? "browse" : "read"} · type filter · e edit · a add · PgUp/PgDn scroll · r refresh · q quit`;
   }
 
   function selection() {
     const entry = visible[list.getSelectedIndex()];
     text.content = entry
       ? documentStyled(cachedView(entry), roles)
-      : "No matching records. Press / to change the search, or Esc to clear it.";
+      : "No matching records. Type to change the filter, or Esc to clear it.";
     detail.scrollTo(0);
     const count = `${entry ? list.getSelectedIndex() + 1 : 0}/${visible.length}`;
     status.fg = muted;
@@ -338,8 +338,22 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     } else if (reading && ["j", "k", "up", "down"].includes(key.name)) {
       detail.scrollBy(["j", "down"].includes(key.name) ? 1 : -1);
     } else if (key.name === "r") { invalidateViews(); entries = backend.entries(); filter(); }
-    else return;
+    else if (!reading) {
+      const ch = typeSearchChar(key);
+      if (!ch) return;
+      focus("search");
+      search.insertText(ch);
+      filter();
+    } else return;
     key.preventDefault();
+  }
+
+  function typeSearchChar(key: KeyEvent): string | null {
+    if (key.ctrl || key.meta) return null;
+    if (key.sequence.length !== 1) return null;
+    const code = key.sequence.charCodeAt(0);
+    if (code < 32 || code === 127) return null;
+    return key.sequence;
   }
 
   search.on(InputRenderableEvents.INPUT, filter);
