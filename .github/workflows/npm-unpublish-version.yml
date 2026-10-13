@@ -1,0 +1,46 @@
+name: npm unpublish version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Exact version to unpublish (must be stub only)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  unpublish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+
+      - name: Guard + unpublish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          VER="${{ inputs.version }}"
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "NPM_TOKEN missing"
+            exit 1
+          fi
+          case "${VER}" in
+            0.0.0-stage) ;;
+            *)
+              echo "Refusing to unpublish non-stub version: ${VER}"
+              exit 1
+              ;;
+          esac
+          echo "Attempting unpublish @scwlkr/2brain@${VER}"
+          npm unpublish "@scwlkr/2brain@${VER}" --force || {
+            echo "unpublish_exit=$?"
+            echo "CLI unpublish failed (often needs OTP/browser). See job log."
+            exit 1
+          }
+          npm view @scwlkr/2brain versions --json
