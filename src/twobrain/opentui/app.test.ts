@@ -42,8 +42,32 @@ test("OpenTUI loads selective context, filters names, and reports empty results"
   f.harness.mockInput.pressKey("/");
   f.harness.mockInput.typeText("nonexistent");
   f.harness.mockInput.pressEnter();
-  expect(await f.frame()).toContain("No matching records.");
-  expect(await f.frame()).toContain("0/0 records");
+  const empty = await f.frame();
+  expect(empty).toContain("No matching records. Esc clears · a creates a record.");
+  expect(empty).toContain("0/0 records");
+});
+
+test("empty tool and project detail name the next edit", async () => {
+  const f = await fixture();
+  const empty = JSON.stringify({schema_version: 1, guidance: [], pointers: []});
+  writeFileSync(join(f.root, "tools/blank.json"), empty);
+  writeFileSync(join(f.root, "projects/owner/repo.json"), empty);
+  f.harness.mockInput.pressKey("r");
+  f.harness.mockInput.pressArrow("down");
+  const tool = await f.frame();
+  expect(tool).toContain("blank / tool");
+  expect(tool).toContain("No guidance yet.");
+  expect(tool).toContain("e writes guidance · p adds pointers · a creates a record.");
+  expect(tool).not.toContain("No guidance saved yet.");
+  expect(tool).not.toContain("General OpenTUI proof.");
+  const cta = f.harness.captureSpans().lines.flatMap(line => line.spans).find(span => span.text.includes("e writes guidance"));
+  expect(cta?.fg.toInts()).toEqual([173, 182, 173, 255]);
+  f.harness.mockInput.pressArrow("down");
+  f.harness.mockInput.pressArrow("down");
+  const project = await f.frame();
+  expect(project).toContain("owner/repo / project");
+  expect(project).toContain("e writes guidance · p adds pointers · a creates a record.");
+  expect(project).toContain("General OpenTUI proof.");
 });
 
 test("browse mode type-to-filter without slash, keeping e for edit", async () => {

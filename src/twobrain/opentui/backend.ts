@@ -55,11 +55,13 @@ export class Backend {
   }
 }
 
+const EMPTY_RECORD_CTA = ["No guidance yet.", "e writes guidance · p adds pointers · a creates a record."];
+
 function plainRecord(lines: string[], title: string, data: RecordData) {
   lines.push(title, "");
   for (const guidance of data.guidance) lines.push(`· ${guidance}`, "");
   for (const pointer of data.pointers) lines.push(`→ ${pointer.label}: ${pointer.target}`, "");
-  if (!data.guidance.length && !data.pointers.length) lines.push("No guidance saved yet.", "");
+  if (!data.guidance.length && !data.pointers.length) lines.push(...EMPTY_RECORD_CTA, "");
 }
 
 export function document(view: View): string {
@@ -92,7 +94,7 @@ function styledRecord(chunks: TextChunk[], title: string, data: RecordData, role
       "\n\n");
   }
   if (!data.guidance.length && !data.pointers.length) {
-    add(chunks, fg(roles.muted)("No guidance saved yet."), "\n\n");
+    add(chunks, fg(roles.muted)(EMPTY_RECORD_CTA[0]), "\n", fg(roles.muted)(EMPTY_RECORD_CTA[1]), "\n\n");
   }
 }
 

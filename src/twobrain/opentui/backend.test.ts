@@ -44,6 +44,32 @@ test("prose helpers split blank lines and keep single newlines", () => {
   expect(proseToGuidance(guidanceToProse(["Line one.\nLine two.", "Next"]))).toEqual(["Line one.\nLine two.", "Next"]);
 });
 
+test("document asks for the next edit when a record has no guidance and no pointers", () => {
+  expect(document({
+    context: {guidance: [], pointers: []},
+    tool: "blank",
+    policy: "Current instructions win.",
+  })).toBe([
+    "blank",
+    "",
+    "No guidance yet.",
+    "e writes guidance · p adds pointers · a creates a record.",
+    "",
+    "Current instructions win.",
+  ].join("\n"));
+  expect(document({
+    context: {guidance: [], pointers: [{label: "Notes", target: "notes.md"}]},
+    project: "owner/repo",
+    policy: "Current instructions win.",
+  })).toBe([
+    "owner/repo",
+    "",
+    "→ Notes: notes.md",
+    "",
+    "Current instructions win.",
+  ].join("\n"));
+});
+
 test("document keeps title, guidance bullets, labeled pointers, and muted policy copy", () => {
   const plain = document({
     context: {

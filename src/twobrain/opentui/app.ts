@@ -194,7 +194,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     const entry = visible[list.getSelectedIndex()];
     text.content = entry
       ? documentStyled(cachedView(entry), roles)
-      : "No matching records. Type to change the filter, or Esc to clear it.";
+      : "No matching records. Esc clears · a creates a record.";
     detail.scrollTo(0);
     const count = `${entry ? list.getSelectedIndex() + 1 : 0}/${visible.length}`;
     status.fg = muted;
