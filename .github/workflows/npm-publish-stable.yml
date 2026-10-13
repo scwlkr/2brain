@@ -49,4 +49,5 @@ jobs:
           set -euo pipefail
           VER="$(node -p "require('./package.json').version")"
           npm publish --tag stable --access public
-          echo "Published @scwlkr/2brain@${VER} with dist-tag stable"
+          npm dist-tag add "@scwlkr/2brain@${VER}" latest
+          echo "Published @scwlkr/2brain@${VER} with dist-tags stable + latest"
