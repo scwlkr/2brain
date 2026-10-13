@@ -21,6 +21,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
   const roles = {accent, muted, fg};
   let motion: Timeline | null = null;
   type Screen = {name: "browse" | "search" | "read"}
+    | {name: "confirm-remove"; entry: Entry; returnTo: "browse" | "read"}
     | {name: "edit"; entry: Entry; pointers: StoredRecord["pointers"]; person?: string}
     | {name: "pointers"; entry: Entry; guidance: string[]; person?: string;
        pointers: {label: string; target: string}[]; focus: "list" | "label" | "target"}
@@ -128,6 +129,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     if (screen.name === "add" || screen.name === "name") return "New";
     if (screen.name === "search") return "Search";
     if (screen.name === "read") return "Read";
+    if (screen.name === "confirm-remove") return "Remove";
     return "Browse";
   }
 
@@ -145,8 +147,9 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     const pointing = screen.name === "pointers";
     const pointingFields = screen.name === "pointers" && screen.focus !== "list";
     const pointerRows = screen.name === "pointers" ? screen.pointers.length : 0;
+    const confirming = screen.name === "confirm-remove";
     const overlay = editing || adding || naming || pointing;
-    const reading = screen.name === "read";
+    const reading = screen.name === "read" || (screen.name === "confirm-remove" && screen.returnTo === "read");
     const searching = screen.name === "search";
     heading.content = narrow ? "2brain / local context" : "2brain / your context, close at hand";
     caption.content = editing ? "EDIT GUIDANCE" : pointing ? "EDIT POINTERS" : adding || naming ? "NEW RECORD" : "LOCAL CONTEXT / EDITABLE";
@@ -176,7 +179,9 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
       detail.borderColor = reading ? accent : line;
       detail.paddingLeft = narrow ? 0 : 2;
     }
-    help.content = pointing
+    help.content = confirming
+      ? "y confirm · Esc cancel"
+      : pointing
       ? pointingFields
         ? "Enter next · Esc back · Alt+Enter or Ctrl+S save"
         : "↑↓ select · Enter edit · n add · d delete · Alt+Enter or Ctrl+S save · Esc cancel"
@@ -184,10 +189,10 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
       : adding ? "↑↓ choose · Enter select · Esc cancel"
       : naming ? "Enter create · Esc cancel"
       : searching ? "Enter apply · Esc clear · Ctrl+C quit" : narrow
-      ? reading ? "↑↓ scroll · Esc back · q quit" : "↑↓ · Enter read · type filter · e edit · p pointers · a add · q quit"
+      ? reading ? "↑↓ scroll · d remove · Esc back · q quit" : "↑↓ · d remove · Enter read · type filter · e edit · p pointers · a add · q quit"
       : reading
-      ? "↑↓ scroll · Tab browse · e edit · p pointers · a add · PgUp/PgDn scroll · r refresh · q quit"
-      : "↑↓ browse · Tab read · type filter · e edit · p pointers · a add · PgUp/PgDn · r refresh · q quit";
+      ? "↑↓ scroll · Tab browse · e edit · p pointers · a add · d remove · PgUp/PgDn · r refresh · q quit"
+      : "↑↓ browse · Tab read · type filter · e edit · p pointers · a add · d remove · r refresh · q quit";
   }
 
   function selection() {
@@ -196,6 +201,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
       ? documentStyled(cachedView(entry), roles)
       : "No matching records. Esc clears · a creates a record.";
     detail.scrollTo(0);
+    if (screen.name === "confirm-remove") return;
     const count = `${entry ? list.getSelectedIndex() + 1 : 0}/${visible.length}`;
     status.fg = muted;
     status.content = `${modeLabel()} · ${count} records`;
@@ -487,6 +493,55 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     else editPointerRow(pointerList.getSelectedIndex());
   }
 
+  function askRemove() {
+    const entry = visible[list.getSelectedIndex()];
+    if (!entry) { flashStatus("No record selected."); return; }
+    if (entry.kind === "general") {
+      try {
+        backend.remove(entry);
+      } catch (error) {
+        flashStatus(error instanceof Error ? error.message : String(error));
+        return;
+      }
+      invalidateViews();
+      entries = backend.entries();
+      filter();
+      flashStatus("Removed general.");
+      return;
+    }
+    const returnTo = screen.name === "read" ? "read" : "browse";
+    screen = {name: "confirm-remove", entry, returnTo};
+    layout();
+    flashStatus(`Remove ${entry.name}? y confirm · Esc cancel`, "accent");
+  }
+
+  function cancelRemove() {
+    if (screen.name !== "confirm-remove") return;
+    const returnTo = screen.returnTo;
+    focus(returnTo === "read" ? "detail" : "list");
+    flashStatus("Remove cancelled.");
+  }
+
+  function runRemove() {
+    if (screen.name !== "confirm-remove") return;
+    const {entry, returnTo} = screen;
+    const index = visible.findIndex(item => item.kind === entry.kind && item.name === entry.name);
+    try {
+      backend.remove(entry);
+    } catch (error) {
+      focus(returnTo === "read" ? "detail" : "list");
+      flashStatus(error instanceof Error ? error.message : String(error));
+      return;
+    }
+    invalidateViews();
+    entries = backend.entries();
+    showBrowse();
+    filter();
+    if (visible.length) list.setSelectedIndex(Math.min(Math.max(index, 0), visible.length - 1));
+    selection();
+    flashStatus(`Removed ${entry.name}.`, "accent");
+  }
+
   function key(key: KeyEvent) {
     if (key.ctrl && key.name === "c") { renderer.destroy(); return; }
     if (screen.name === "edit") {
@@ -524,6 +579,12 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
       }
       return;
     }
+    if (screen.name === "confirm-remove") {
+      if ((key.name === "y" || key.name === "Y") && !key.ctrl && !key.meta) runRemove();
+      else if (key.name === "escape") cancelRemove();
+      key.preventDefault();
+      return;
+    }
     if (screen.name === "search") {
       if (key.name === "escape") { search.value = ""; filter(); focus("list"); key.preventDefault(); }
       else if (key.name === "return" || key.name === "linefeed") { focus("list"); key.preventDefault(); }
@@ -534,6 +595,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     else if (key.name === "e" && !key.ctrl && !key.meta && !key.shift) beginEdit();
     else if (key.name === "a" && !key.ctrl && !key.meta && !key.shift) beginAdd();
     else if (key.name === "p" && !key.ctrl && !key.meta && !key.shift) beginPointers();
+    else if (key.name === "d" && !key.ctrl && !key.meta && !key.shift) askRemove();
     else if (key.name === "/") focus("search");
     else if (key.name === "tab") focus(reading ? "list" : "detail");
     else if (key.name === "return" || key.name === "right") focus("detail");

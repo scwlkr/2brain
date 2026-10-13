@@ -1,5 +1,5 @@
 import {afterEach, expect, test} from "bun:test";
-import {mkdtempSync, readFileSync, rmSync} from "node:fs";
+import {existsSync, mkdtempSync, readFileSync, rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {Backend, document, guidanceToProse, proseToGuidance, type StoredRecord} from "./backend.ts";
@@ -131,4 +131,30 @@ test("Backend.write saves multiline guidance through put", () => {
   expect(listed.tools).toEqual(["git"]);
   expect(listed.projects).toEqual(["acme/widget"]);
   expect(backend.read(["--project", "acme/widget"]).context.guidance).toEqual(["Ship\nit"]);
+});
+
+test("Backend.remove deletes a tool and a project and refuses general", () => {
+  const parent = mkdtempSync(join(tmpdir(), "2brain-remove-"));
+  cleanup.push(parent);
+  const root = join(parent, "local");
+  const env = gitEnv(parent);
+  spawnBrain(env, ["--data", root, "--json", "init"]);
+  const backend = new Backend([...command(), "--data", root], env);
+  backend.write({kind: "tool", name: "git"}, {schema_version: 1, guidance: ["Use local checks."], pointers: []});
+  backend.write({kind: "project", name: "acme/widget"}, {schema_version: 1, guidance: ["Ship it."], pointers: []});
+  const generalBefore = readFileSync(join(root, "general.json"));
+  const removedTool = backend.remove({kind: "tool", name: "git"});
+  expect(removedTool.message).toBe("Removed tools/git.json locally.");
+  expect(existsSync(join(root, "tools/git.json"))).toBe(false);
+  expect(backend.read(["--list"]).tools).toEqual([]);
+  const removedProject = backend.remove({kind: "project", name: "acme/widget"});
+  expect(removedProject.message).toBe("Removed projects/acme/widget.json locally.");
+  expect(existsSync(join(root, "projects/acme/widget.json"))).toBe(false);
+  expect(backend.read(["--list"]).projects).toEqual([]);
+  expect(() => backend.remove({kind: "general", name: "General"})).toThrow("Replace general guidance with an empty record to clear it; keep general.json.");
+  expect(readFileSync(join(root, "general.json"))).toEqual(generalBefore);
+  const log = Bun.spawnSync(["git", "-C", root, "log", "--format=%s"], {env, stdout: "pipe", stderr: "pipe"});
+  const subjects = new TextDecoder().decode(log.stdout);
+  expect(subjects).toContain("2brain: remove tools/git.json: edited via tui");
+  expect(subjects).toContain("2brain: remove projects/acme/widget.json: edited via tui");
 });

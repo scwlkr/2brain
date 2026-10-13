@@ -42,6 +42,11 @@ export class Backend {
     return this.run(["put", ...selector, "--file", "-", "--reason", TUI_REASON], JSON.stringify(record), 20000);
   }
 
+  remove(entry: Entry): any {
+    const selector = entry.kind === "general" ? ["--general"] : [`--${entry.kind}`, entry.name];
+    return this.run(["remove", ...selector, "--reason", TUI_REASON], undefined, 20000);
+  }
+
   entries(): Entry[] {
     const inventory = this.read(["--list"]);
     return [{kind: "general", name: "General"},
