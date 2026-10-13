@@ -18,6 +18,9 @@ class Setup(Scenario):
         self.assertFalse((home / "AGENTS.override.md").exists())
         text = (home / "AGENTS.md").read_text()
         self.assertIn("run `2brain`", text)
+        self.assertIn("installed `wstack` SKILL.md", text)
+        self.assertIn("unless the user opts out", text)
+        self.assertIn("Wstack owns workflow and wins over 2brain", text)
         self.assertNotIn("Previous", text)
         from pathlib import Path
         backup = Path(result["instructions_backup"])

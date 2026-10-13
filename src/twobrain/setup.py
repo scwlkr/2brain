@@ -11,9 +11,10 @@ from .operations import initialize
 from .records import check_atom, validate_all
 
 CODEX_LOADER = (
-    "Near the start of each coding session, run `2brain` and use its output as personalization guidance. "
-    "Load additional tool or repository context only when needed with `2brain --tool <name>` or "
-    "`2brain --project <owner/repo>`. Use `2brain --list` to discover available context.\n"
+    "Coding start → run `2brain`; read/use the installed `wstack` SKILL.md unless the user opts out. "
+    "2brain supplies background context; Wstack owns workflow and wins over 2brain. "
+    "Extra context only when needed: `2brain --tool <name>`, `2brain --project <owner/repo>`; "
+    "discover with `2brain --list`. Missing tooling → continue possible work; report the blocker.\n"
 )
 
 

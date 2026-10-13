@@ -21,7 +21,8 @@ class ReadsAndUpdates(Scenario):
         self.assertEqual(tool["context"]["guidance"], ["Use local checks."])
         project = self.call(data, "--project", "repo", env={"PATH": str(empty_path)})
         self.assertEqual(project["project"], "owner/repo")
-        self.assertEqual(project["precedence"], ["current_instructions", "project", "general"])
+        self.assertEqual(project["precedence"], ["current_instructions", "wstack", "project", "general"])
+        self.assertIn("Wstack owns coding workflow and wins over 2brain", project["policy"])
         inventory = self.call(data, "--list", env={"PATH": str(empty_path)})
         self.assertEqual(inventory["tools"], ["broken", "git"])
         text = self.call(data, raw=True, env={"PATH": str(empty_path)}).stdout

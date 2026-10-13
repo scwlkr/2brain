@@ -14,7 +14,7 @@ from .gitrepo import lock, remote, require_repository, status, sync
 from .records import default_home, discover, read_record, select
 from .setup import setup
 
-POLICY = "Current instructions win; project guidance overrides general defaults. Save only requested or explicitly lasting preferences."
+POLICY = "Current instructions win; Wstack owns coding workflow and wins over 2brain. 2brain supplies background context. Save only requested or explicitly lasting context."
 
 
 class ArgumentParser(argparse.ArgumentParser):
@@ -101,7 +101,7 @@ def query(root, args):
         output.update(tool=key, context=record)
     else:
         output.update(project=key, general=read_record(root, Path("general.json"), warnings), context=record)
-        output["precedence"] = ["current_instructions", "project", "general"]
+        output["precedence"] = ["current_instructions", "wstack", "project", "general"]
     return output
 
 

@@ -1,6 +1,6 @@
 # 2brain
 
-Small, portable personalization for terminal agents. `2brain` reads a short introduction; tool and repository details load only when requested. Your current instructions always take precedence.
+Small, portable background context for terminal agents: identity, roles, projects, and tool/access details. Coding sessions use the installed Wstack skill unless you opt out. Wstack owns workflow and wins over 2brain; keep its principles out of context records. Your current instructions always take precedence.
 
 Python 3.10+ and Git 2.28+; no Python runtime packages, model, database, or server. Python's standard library keeps ordinary CLI reads portable and offline. The optional OpenTUI browser manages its own Bun runtime and locked dependencies. Separate UTF-8 JSON records validate before saving and merge through Git. Git is only required for writes/history/sync.
 
@@ -155,7 +155,7 @@ geometry, lettering, and color values are interpreted rather than exact original
 2brain --project owner/example-repo --json
 ```
 
-Discovery lists names without opening other records. Default guidance allows at most six entries and 1,000 characters, plus four pointers. Tool reads return just that tool. Project reads include general guidance followed by the repository record; JSON explicitly gives precedence as current instructions → project → general. Free-text guidance remains instructions for the receiving agent, rather than executable policy. An ambiguous unqualified repository name requires `owner/repo`; no aliases or per-computer checkout mappings exist.
+Discovery lists names without opening other records. General context allows six entries, 1,000 characters, and four pointers. Tool reads return just that tool; project reads include general context. JSON precedence: current instructions → Wstack → project context → general context. The `guidance` field stores background facts and lasting personal/access context, not a second workflow. Records do not execute policy. An ambiguous repository name requires `owner/repo`.
 
 ## Deliberate updates
 
@@ -169,28 +169,28 @@ In `2brain tui`, `e` edits guidance, `p` edits pointers, and `a` creates a tool 
 2brain edit --general
 2brain edit --tool git
 2brain edit --project owner/repo
-2brain edit --general --reason "Prefer shorter responses"
+2brain edit --general --reason "User updated their role"
 ```
 
 VS Code's `code` command must be on PATH. The command opens a temporary JSON draft; save it and **close its tab** to finish. It validates the draft and commits locally with a default reason such as `edited general guidance`; `--reason` supplies your own history message. Unchanged records, including formatting-only edits, create no commit. Use `sync` separately to exchange changes with your remote.
 
 Editing refuses to start when there are unsaved context changes. It checks again after VS Code closes and also refuses a stale draft if another commit appeared while editing. Existing work remains untouched. Invalid drafts, editor failures and interrupted edits are retained under the context repository's `.git/2brain-drafts/` directory; the error reports the exact draft path. Correct a retained draft and deliberately save it with `2brain put --general --file <draft-path> --reason "Your reason"` (or the matching tool/project selector), once other pending work is saved. A fresh `edit` always starts from the current record.
 
-Create a UTF-8 file such as `git.json`:
+Create a UTF-8 file such as `tool.json`:
 
 ```json
 {
   "schema_version": 1,
-  "guidance": ["A preference the user explicitly confirmed."],
-  "pointers": [{"label": "Existing instructions", "target": "https://github.com/owner/repo"}]
+  "guidance": ["Configured tool and access details the user confirmed."],
+  "pointers": [{"label": "Tool reference", "target": "https://github.com/owner/repo"}]
 }
 ```
 
 ```sh
-2brain put --tool git --file git.json --reason "User asked to remember their Git preference"
-2brain put --project owner/repo --file repo.json --reason "User confirmed this repository convention"
-2brain put --general --file general.json --reason "User requested updated general guidance"
-2brain remove --tool git --reason "User asked to forget this preference"
+2brain put --tool example-tool --file tool.json --reason "User confirmed this tool's access context"
+2brain put --project owner/repo --file repo.json --reason "User confirmed this project's context"
+2brain put --general --file general.json --reason "User requested updated background context"
+2brain remove --tool example-tool --reason "User asked to forget this context"
 2brain history --tool git
 2brain undo <commit-SHA> --reason "User asked to undo that update"
 ```

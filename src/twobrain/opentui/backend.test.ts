@@ -51,7 +51,7 @@ test("document keeps title, guidance bullets, labeled pointers, and muted policy
       pointers: [{label: "Board", target: "https://example.invalid/board"}],
     },
     tool: "git",
-    policy: "Current instructions win; project guidance overrides general defaults.",
+    policy: "Current instructions win; Wstack owns coding workflow.",
     warnings: ["stale tip"],
   });
   expect(plain).toBe([
@@ -63,7 +63,7 @@ test("document keeps title, guidance bullets, labeled pointers, and muted policy
     "",
     "Warning: stale tip",
     "",
-    "Current instructions win; project guidance overrides general defaults.",
+    "Current instructions win; Wstack owns coding workflow.",
   ].join("\n"));
 });
 
