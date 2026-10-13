@@ -1,7 +1,10 @@
+import {StyledText, bold, fg, type ColorInput, type TextChunk} from "@opentui/core";
+
 export type Entry = {kind: "general" | "tool" | "project"; name: string};
 type RecordData = {person?: string; guidance: string[]; pointers: {label: string; target: string}[]};
 export type StoredRecord = {schema_version: 1; guidance: string[]; pointers: {label: string; target: string}[]; person?: string};
 export type View = {general?: RecordData; context?: RecordData; tool?: string; project?: string; policy?: string; warnings?: string[]; error?: string};
+export type DocumentRoles = {accent: ColorInput; muted: ColorInput; fg: ColorInput};
 export const TUI_REASON = "edited via tui";
 
 export function guidanceToProse(guidance: string[]): string {
@@ -52,18 +55,55 @@ export class Backend {
   }
 }
 
+function plainRecord(lines: string[], title: string, data: RecordData) {
+  lines.push(title, "");
+  for (const guidance of data.guidance) lines.push(`· ${guidance}`, "");
+  for (const pointer of data.pointers) lines.push(`→ ${pointer.label}: ${pointer.target}`, "");
+  if (!data.guidance.length && !data.pointers.length) lines.push("No guidance saved yet.", "");
+}
+
 export function document(view: View): string {
   if (view.error) return view.error;
   const lines: string[] = [];
-  function record(title: string, data: RecordData) {
-    lines.push(title, "");
-    for (const guidance of data.guidance) lines.push(`· ${guidance}`, "");
-    for (const pointer of data.pointers) lines.push(pointer.label, pointer.target, "");
-    if (!data.guidance.length && !data.pointers.length) lines.push("No guidance saved yet.", "");
-  }
-  if (view.context) record(view.tool || view.project || "Context", view.context);
-  if (view.general) record(view.general.person || "General", view.general);
+  if (view.context) plainRecord(lines, view.tool || view.project || "Context", view.context);
+  if (view.general) plainRecord(lines, view.general.person || "General", view.general);
   for (const warning of view.warnings || []) lines.push(`Warning: ${warning}`, "");
   lines.push(view.policy || "Current instructions take precedence.");
   return lines.join("\n");
+}
+
+function add(chunks: TextChunk[], ...parts: Array<string | TextChunk>) {
+  for (const part of parts) {
+    chunks.push(typeof part === "string" ? {__isChunk: true, text: part} : part);
+  }
+}
+
+function styledRecord(chunks: TextChunk[], title: string, data: RecordData, roles: DocumentRoles) {
+  add(chunks, bold(fg(roles.accent)(title)), "\n\n");
+  for (const guidance of data.guidance) {
+    add(chunks, fg(roles.accent)("· "), fg(roles.fg)(guidance), "\n\n");
+  }
+  for (const pointer of data.pointers) {
+    add(chunks,
+      fg(roles.muted)("→ "),
+      fg(roles.accent)(`${pointer.label}:`),
+      " ",
+      fg(roles.fg)(pointer.target),
+      "\n\n");
+  }
+  if (!data.guidance.length && !data.pointers.length) {
+    add(chunks, fg(roles.muted)("No guidance saved yet."), "\n\n");
+  }
+}
+
+export function documentStyled(view: View, roles: DocumentRoles): StyledText {
+  if (view.error) return new StyledText([{__isChunk: true, text: view.error}]);
+  const chunks: TextChunk[] = [];
+  if (view.context) styledRecord(chunks, view.tool || view.project || "Context", view.context, roles);
+  if (view.general) styledRecord(chunks, view.general.person || "General", view.general, roles);
+  for (const warning of view.warnings || []) {
+    add(chunks, fg(roles.muted)(`Warning: ${warning}`), "\n\n");
+  }
+  add(chunks, fg(roles.muted)(view.policy || "Current instructions take precedence."));
+  return new StyledText(chunks);
 }

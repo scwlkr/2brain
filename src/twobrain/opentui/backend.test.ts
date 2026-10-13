@@ -2,7 +2,7 @@ import {afterEach, expect, test} from "bun:test";
 import {mkdtempSync, readFileSync, rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {Backend, guidanceToProse, proseToGuidance, type StoredRecord} from "./backend.ts";
+import {Backend, document, guidanceToProse, proseToGuidance, type StoredRecord} from "./backend.ts";
 
 const cleanup: string[] = [];
 afterEach(() => { for (const root of cleanup.splice(0)) rmSync(root, {recursive: true, force: true}); });
@@ -42,6 +42,29 @@ test("prose helpers split blank lines and keep single newlines", () => {
   expect(guidanceToProse([])).toBe("");
   expect(proseToGuidance("one\r\n\r\ntwo")).toEqual(["one", "two"]);
   expect(proseToGuidance(guidanceToProse(["Line one.\nLine two.", "Next"]))).toEqual(["Line one.\nLine two.", "Next"]);
+});
+
+test("document keeps title, guidance bullets, labeled pointers, and muted policy copy", () => {
+  const plain = document({
+    context: {
+      guidance: ["Use local checks."],
+      pointers: [{label: "Board", target: "https://example.invalid/board"}],
+    },
+    tool: "git",
+    policy: "Current instructions win; project guidance overrides general defaults.",
+    warnings: ["stale tip"],
+  });
+  expect(plain).toBe([
+    "git",
+    "",
+    "· Use local checks.",
+    "",
+    "→ Board: https://example.invalid/board",
+    "",
+    "Warning: stale tip",
+    "",
+    "Current instructions win; project guidance overrides general defaults.",
+  ].join("\n"));
 });
 
 test("Backend.write saves multiline guidance through put", () => {

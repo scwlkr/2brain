@@ -127,7 +127,7 @@ function gitEnv(parent: string): Record<string, string> {
   return env;
 }
 
-async function writableFixture() {
+async function writableFixture(color = true) {
   const parent = mkdtempSync(join(tmpdir(), "2brain-opentui-write-"));
   cleanup.push(async () => rmSync(parent, {recursive: true, force: true}));
   const root = join(parent, "local");
@@ -157,7 +157,7 @@ async function writableFixture() {
   const harness = await createTestRenderer({width: 100, height: 24, exitOnCtrlC: false});
   cleanup.push(() => harness.dispose());
   const palette = backend.read(["brand"]).palette;
-  const ui = createBrowser(harness.renderer, backend, {theme: "dark", color: true, palette});
+  const ui = createBrowser(harness.renderer, backend, {theme: "dark", color, palette});
   const frame = async () => { await harness.flush(); return harness.captureCharFrame(); };
   return {root, backend, harness, frame, env, ui};
 }
@@ -286,5 +286,34 @@ test("NO_COLOR presentation retains default foreground and background for conten
     const span=spans.find(item=>item.text.includes(phrase));
     expect(span?.fg.intent).toBe("default");
     expect(span?.bg.intent).toBe("default");
+  }
+});
+
+test("detail pane paints title, guidance bullet, pointer label, and policy with brand roles", async () => {
+  const f = await writableFixture();
+  const frame = await f.frame();
+  expect(frame).toContain("Fixture User");
+  expect(frame).toContain("· Keep local checks.");
+  expect(frame).toContain("→ Notes: notes.md");
+  expect(frame).toContain("Current instructions win;");
+  const spans = f.harness.captureSpans().lines.flatMap(line => line.spans);
+  expect(spans.find(span => span.text.includes("Fixture User"))?.fg.toInts()).toEqual([148, 180, 156, 255]);
+  expect(spans.find(span => span.text === "· ")?.fg.toInts()).toEqual([148, 180, 156, 255]);
+  expect(spans.find(span => span.text.includes("Keep local checks."))?.fg.toInts()).toEqual([248, 248, 244, 255]);
+  expect(spans.find(span => span.text === "→ ")?.fg.toInts()).toEqual([173, 182, 173, 255]);
+  expect(spans.find(span => span.text === "Notes:")?.fg.toInts()).toEqual([148, 180, 156, 255]);
+  expect(spans.find(span => span.text.includes("notes.md"))?.fg.toInts()).toEqual([248, 248, 244, 255]);
+  expect(spans.find(span => span.text.includes("Current instructions win;"))?.fg.toInts()).toEqual([173, 182, 173, 255]);
+});
+
+test("NO_COLOR detail hierarchy stays readable with default span colors", async () => {
+  const f = await writableFixture(false);
+  const shown = await f.frame();
+  expect(shown).toContain("· Keep local checks.");
+  expect(shown).toContain("→ Notes: notes.md");
+  const spans = f.harness.captureSpans().lines.flatMap(line => line.spans);
+  for (const phrase of ["Fixture User", "· ", "Keep local checks.", "→ ", "Notes:", "notes.md", "Current instructions win;"]) {
+    const span = spans.find(item => item.text.includes(phrase) || item.text === phrase);
+    expect(span?.fg.intent).toBe("default");
   }
 });
