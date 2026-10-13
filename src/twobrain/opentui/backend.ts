@@ -1,17 +1,42 @@
 export type Entry = {kind: "general" | "tool" | "project"; name: string};
 type RecordData = {person?: string; guidance: string[]; pointers: {label: string; target: string}[]};
+export type StoredRecord = {schema_version: 1; guidance: string[]; pointers: {label: string; target: string}[]; person?: string};
 export type View = {general?: RecordData; context?: RecordData; tool?: string; project?: string; policy?: string; warnings?: string[]; error?: string};
+export const TUI_REASON = "edited via tui";
+
+export function guidanceToProse(guidance: string[]): string {
+  return guidance.join("\n\n");
+}
+
+export function proseToGuidance(text: string): string[] {
+  return text.replaceAll("\r\n", "\n").replaceAll("\r", "\n").split(/\n{2,}/).map(segment => segment.trim()).filter(segment => segment.length > 0);
+}
 
 export class Backend {
-  constructor(private command: string[]) {}
+  constructor(private command: string[], private env?: Record<string, string>) {}
+
+  private run(args: string[], stdin?: string, timeout = 15000): any {
+    const result = Bun.spawnSync([...this.command, "--json", ...args], {
+      stdout: "pipe", stderr: "pipe", timeout,
+      ...(stdin !== undefined ? {stdin: new TextEncoder().encode(stdin)} : {}),
+      ...(this.env ? {env: this.env} : {}),
+    });
+    const stdout = new TextDecoder().decode(result.stdout);
+    const stderr = new TextDecoder().decode(result.stderr);
+    let value;
+    try { value = JSON.parse(stdout); }
+    catch { throw new Error(stderr || "2brain returned unreadable context."); }
+    if (result.exitCode !== 0) throw new Error(value.error || stderr || "2brain could not load context.");
+    return value;
+  }
 
   read(args: string[] = []): any {
-    const result = Bun.spawnSync([...this.command, "--json", ...args], {stdout: "pipe", stderr: "pipe", timeout: 15000});
-    let value;
-    try { value = JSON.parse(new TextDecoder().decode(result.stdout)); }
-    catch { throw new Error(new TextDecoder().decode(result.stderr) || "2brain returned unreadable context."); }
-    if (result.exitCode !== 0) throw new Error(value.error || "2brain could not load context.");
-    return value;
+    return this.run(args);
+  }
+
+  write(entry: Entry, record: StoredRecord): any {
+    const selector = entry.kind === "general" ? ["--general"] : [`--${entry.kind}`, entry.name];
+    return this.run(["put", ...selector, "--file", "-", "--reason", TUI_REASON], JSON.stringify(record), 20000);
   }
 
   entries(): Entry[] {

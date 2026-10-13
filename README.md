@@ -95,7 +95,7 @@ override detection. `NO_COLOR` and `TERM=dumb` suppress automatic color.
 Use `--theme light` for forest accents on a light terminal background; the default
 theme uses sage accents for a dark background.
 
-Browse local records with the read-only **OpenTUI** interface:
+Browse and edit local records in the terminal:
 
 ```sh
 2brain tui
@@ -120,12 +120,17 @@ uv tool install --force --refresh "git+https://github.com/scwlkr/2brain.git@stab
 Installing in a cloud checkout does not update the CLI on another computer.
 See the [OpenTUI development instructions](src/twobrain/opentui/README.md).
 
-Use arrows or `j`/`k` to browse, `/` to filter record names, Enter to read on narrow
+Use arrows, `j`, or `k` to browse, `/` to filter record names, Enter to read on narrow
 terminals, Tab to change focus, Page Up/Down to scroll, `r` to refresh, and `q` to
-quit. Mouse selection and scrolling are also supported. Escape clears a search
-or returns from a record. OpenTUI owns layout, rendering, input, and terminal
-cleanup. The browser never writes or syncs context. Linux PTY behavior is tested;
-native macOS and Windows execution still require qualification on those systems.
+quit. Press `e` to edit the selected record's guidance. Press `a` to create a tool
+record or a project record (`owner/repo`). In the editor, Enter inserts a line.
+A blank line starts another guidance entry. Alt+Enter or Ctrl+S saves. Escape
+cancels an edit or a new record. Escape also clears a search or returns from a
+record. A save commits locally through `put` with the reason `edited via tui`.
+The browser does not sync. Mouse selection and scrolling are also supported.
+OpenTUI owns layout, rendering, input, and terminal cleanup. Linux PTY behavior
+is tested. Native macOS and Windows execution still require qualification on
+those systems.
 
 The reusable [brand guide](src/twobrain/brand/index.html), SVG artwork, and compact
 style source are included in both the package and standalone archive:
@@ -156,7 +161,9 @@ Discovery lists names without opening other records. Default guidance allows at 
 
 Use the user's actual request or explicit lasting preference as the reason. Do not save inferred preferences, suggestions, experiments, or assistant-generated examples.
 
-To edit an existing record in VS Code:
+In `2brain tui`, `e` edits guidance and `a` creates a tool or project record. That save uses the reason `edited via tui` and the same validation as `put`. Agents continue to use `put`, `remove`, and `save` with the user's own reason.
+
+`2brain edit` opens one record as JSON in VS Code. Use it when you want the raw record:
 
 ```sh
 2brain edit --general
@@ -188,7 +195,7 @@ Create a UTF-8 file such as `git.json`:
 2brain undo <commit-SHA> --reason "User asked to undo that update"
 ```
 
-`put` creates or replaces exactly one record and commits locally. `--file -` reads JSON from stdin. A general record may also contain `"person": "Fixture User"`; leave unknown preferences unfilled. Inspect existing record JSON through `--json` (the record is under `general` or `context`). Records contain only `schema_version`, `guidance`, `pointers`, and optional general `person`.
+`put` creates or replaces exactly one record and commits locally. `--file -` reads JSON from stdin. A general record may also contain `"person": "Fixture User"`; leave unknown preferences unfilled. Inspect existing record JSON through `--json` (the record is under `general` or `context`). Records contain only `schema_version`, `guidance`, `pointers`, and optional general `person`. A guidance entry may contain newlines. The terminal editor treats a blank line as the start of the next entry. Person, pointer labels, pointer targets, and the commit reason stay on one line.
 
 You may instead edit the JSON files directly in the data directory, then run `2brain save --reason "User's decision"`. `status` shows that directory, revision, dirty state, and pending conflicts. Save existing manual edits before using `put`, `remove`, or `undo`. Invalid records are left intact with an actionable error. Updates never contact a network. `undo` adds a revert commit for an ordinary update; initial/merge commits require deliberately restoring chosen record contents with `put`.
 

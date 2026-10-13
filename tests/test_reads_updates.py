@@ -40,6 +40,60 @@ class ReadsAndUpdates(Scenario):
         self.assertEqual(rows[-1]["revision"], first)
         self.call(data, "--tool", "git", expect=1)
 
+    def test_multiline_guidance_round_trips_through_put_and_rejects_other_controls(self):
+        data = self.initialize()
+        guidance = ["First line.\nSecond line.", "Next paragraph."]
+        payload = record(*guidance)
+        payload["pointers"] = [{"label": "Docs", "target": "https://example.invalid/docs"}]
+        self.call(data, "put", "--tool", "git", "--file", "-", "--reason", "User explicitly requested multiline guidance",
+                  stdin=json.dumps(payload))
+        disk = json.loads((data / "tools/git.json").read_text(encoding="utf-8"))
+        cli = self.call(data, "--tool", "git")["context"]
+        self.assertEqual(disk["guidance"], ["First line.\nSecond line.", "Next paragraph."])
+        self.assertEqual(cli["guidance"], disk["guidance"])
+        self.assertEqual(cli["pointers"], disk["pointers"])
+        self.assertEqual(self.git(data, "log", "-1", "--format=%s"),
+                         "2brain: update tools/git.json: User explicitly requested multiline guidance")
+
+        before = (data / "tools/git.json").read_bytes()
+        revision = self.git(data, "rev-parse", "HEAD")
+        for bad in ["has\ttab", "has\rreturn", "has\x7fdel", "has\x00null"]:
+            error = self.call(data, "put", "--tool", "git", "--file", "-", "--reason", "User request",
+                              stdin=json.dumps(record(bad)), expect=1)
+            self.assertIn("control", error["error"])
+        error = self.call(data, "put", "--general", "--file", "-", "--reason", "line\nbreak",
+                          stdin=json.dumps(record("Fine.")), expect=1)
+        self.assertIn("one line", error["error"])
+        error = self.call(data, "put", "--general", "--file", "-", "--reason", "User request",
+                          stdin=json.dumps(record("Fine.", person="Line\nbreak")), expect=1)
+        self.assertIn("one line", error["error"])
+        broken_pointer = record("Fine.")
+        broken_pointer["pointers"] = [{"label": "Bad\nlabel", "target": "https://example.invalid"}]
+        error = self.call(data, "put", "--tool", "git", "--file", "-", "--reason", "User request",
+                          stdin=json.dumps(broken_pointer), expect=1)
+        self.assertIn("one line", error["error"])
+        error = self.call(data, "put", "--tool", "git", "--file", "-", "--reason", "User request",
+                          stdin=json.dumps(record(" \n ")), expect=1)
+        self.assertIn("must contain", error["error"])
+        self.assertEqual((data / "tools/git.json").read_bytes(), before)
+        self.assertEqual(self.git(data, "rev-parse", "HEAD"), revision)
+
+        fitted = "a" * 149 + "\n" + "b" * 150
+        self.call(data, "put", "--tool", "git", "--file", "-", "--reason", "User request",
+                  stdin=json.dumps(record(fitted)))
+        self.assertEqual(self.call(data, "--tool", "git")["context"]["guidance"], [fitted])
+        error = self.call(data, "put", "--tool", "git", "--file", "-", "--reason", "User request",
+                          stdin=json.dumps(record(fitted + "c")), expect=1)
+        self.assertIn("1–300", error["error"])
+        general = record("Hello\nthere.", "Second.", person="Fixture User")
+        self.call(data, "put", "--general", "--file", "-", "--reason", "User request", stdin=json.dumps(general))
+        self.assertEqual(self.call(data)["general"]["guidance"], ["Hello\nthere.", "Second."])
+        self.assertEqual(self.call(data)["general"]["person"], "Fixture User")
+        oversized = record(*(["n" * 200] * 5), "m\n" * 100)
+        error = self.call(data, "put", "--general", "--file", "-", "--reason", "User request",
+                          stdin=json.dumps(oversized), expect=1)
+        self.assertIn("1,000", error["error"])
+
     def test_stdin_put_and_validation_leave_previous_record_intact(self):
         data = self.initialize()
         before = (data / "general.json").read_bytes()
