@@ -39,16 +39,17 @@ If uv reports its executable directory is missing from PATH, run `uv tool update
 
 `2brain init` creates empty context offline. `2brain init --seed <record-directory>` copies supplied records without networking. Existing directories are never replaced. Git needs your existing `user.name`/`user.email` configuration for commits. Failed initialization retains partial work at the path reported in its error.
 
-To sync across machines, point context at a remote you own, then sync:
+Primary onboarding for multi-machine sync is local init, then any Git remote you own, then sync. A second GitHub repository is optional, not required.
 
 ```sh
+2brain init
 2brain remote <URL>
 2brain sync
 ```
 
-On additional computers, clone with `2brain init --remote <URL>`. The CLI accepts normal Git transports (HTTPS, SSH, or a path). Privacy is set by how you create the remote, not by local reads.
+On additional computers, clone with `2brain init --remote <URL>`. Use a normal Git URL or a local path to a bare repository. HTTPS, SSH, and filesystem remotes all work. Privacy comes from how you create the remote, not from local reads.
 
-If you already keep context in a GitHub repository, `2brain setup owner/repo` accepts a GitHub name or a full Git URL. It clones when absent and otherwise preserves the existing local copy, including manual edits. It refuses a different remote rather than silently switching datasets.
+`2brain setup owner/repo` remains optional shorthand when the remote already lives on GitHub. It also accepts a full Git URL for any host. It clones when absent and otherwise preserves the existing local copy, including manual edits. It refuses a different remote rather than silently switching datasets.
 
 Optional Codex wiring uses `--codex`. `2brain setup --codex` (with or without a remote) replaces global Codex personalization with only the short 2brain loader. It saves exact previous `AGENTS.md` and `AGENTS.override.md` bytes under the Codex home's inactive `2brain-backups/` directory, then removes the active override so the loader is used. It honors `CODEX_HOME`. Repeating setup makes no extra backup when the loader is already installed. Without `--codex`, agent instructions are untouched. Failed context initialization leaves agent instructions untouched. Restart Codex after setup so it sees the launcher and new instructions.
 
@@ -83,7 +84,7 @@ Advanced source installation remains available: run `python3 install.py --prefix
 
 Default local data: `~/Library/Application Support/2brain` on macOS, `%LOCALAPPDATA%\2brain` on Windows, `$XDG_DATA_HOME/2brain` (or `~/.local/share/2brain`) on Linux. Override with `TWOBRAIN_HOME` or `--data <directory>` anywhere in the command. These locate the dataset, not project checkouts.
 
-`remote` changes local Git configuration only. Create an empty repository on any host when you want a private backup, then attach it with `2brain remote <URL>`.
+`remote` changes local Git configuration only. Create an empty repository on any Git host, or a bare repo on a machine you control, then attach it with `2brain remote <URL>`.
 
 ## Read only what you need
 
@@ -200,7 +201,7 @@ Records live at `general.json`, `tools/<name>.json`, and `projects/<owner>/<repo
 2brain status --json
 ```
 
-Sync validates and commits deliberate local file edits **before** networking, fetches origin, merges the corresponding branch, validates the result, then pushes normally. Compatible changes merge; no force push, reset, stash, or preference inference. A rejected push (including a concurrent remote update) preserves local commits; retry sync to merge the newer remote. Network calls time out after 30 seconds; existing Git credential configuration is used without interactive prompts.
+Sync validates and commits deliberate local file edits **before** networking, fetches the configured `origin`, merges the corresponding branch, validates the result, then pushes normally. It uses ordinary Git transport against that remote. Compatible changes merge; no force push, reset, stash, or preference inference. A rejected push (including a concurrent remote update) preserves local commits; retry sync to merge the newer remote. Network calls time out after 30 seconds; existing Git credential configuration is used without interactive prompts.
 
 If a merge conflicts, exit code 3 names the affected files. Both committed versions remain in Git. Reads of a conflicted record show your pre-merge committed version and a warning (in JSON, `warnings`); other records remain usable. A record absent from your pre-merge copy reports that limitation. Once you save your resolution, reads show the resolved record.
 
@@ -216,4 +217,4 @@ Copy the short instruction in [AGENT-STARTUP.md](AGENT-STARTUP.md) into your ter
 python3 project check
 ```
 
-Local tests exercise selective concise reads, no-Git offline reads, JSON, explicit updates/reverts, editor subprocesses, draft validation/recovery, concurrent-edit protection, two-copy merges, conflicts, aborted-resolution recovery, failed fetch/push preservation, a standalone archive, and safe repeatable Codex setup. The runner also checks TypeScript and native OpenTUI behavior. Editor tests use a controlled child process; real VS Code interaction requires a native smoke check. No hosted CI is required. The current OpenTUI implementation is verified on Linux; native macOS and Windows execution remains unqualified.
+Local tests exercise selective concise reads, no-Git offline reads, JSON, explicit updates/reverts, editor subprocesses, draft validation/recovery, concurrent-edit protection, two-copy merges over a user-owned bare remote (no GitHub), conflicts, aborted-resolution recovery, failed fetch/push preservation, a standalone archive, and safe repeatable Codex setup. The bare-remote sync smoke is `test_sync_over_user_owned_bare_remote_without_github` in `tests/test_sync.py`. The runner also checks TypeScript and native OpenTUI behavior. Editor tests use a controlled child process; real VS Code interaction requires a native smoke check. No hosted CI is required. The current OpenTUI implementation is verified on Linux; native macOS and Windows execution remains unqualified.

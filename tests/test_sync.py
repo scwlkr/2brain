@@ -4,6 +4,33 @@ from support import Scenario, record
 
 
 class Synchronization(Scenario):
+    def test_sync_over_user_owned_bare_remote_without_github(self):
+        left = self.initialize()
+        remote = self.root / "owned.git"
+        self.git(self.root, "init", "--bare", "-b", "main", str(remote))
+        self.call(left, "remote", str(remote))
+        origin = self.git(left, "remote", "get-url", "origin")
+        self.assertEqual(origin, str(remote))
+        self.assertNotIn("github.com", origin.lower())
+        self.put(left, "tool", "portable", record("User-owned remote preference."))
+        synced = self.call(left, "sync")
+        self.assertEqual(synced["remote"], str(remote))
+        self.assertEqual(synced["message"], "Synced.")
+        right = self.root / "other-machine"
+        self.call(right, "init", "--remote", str(remote))
+        self.assertEqual(
+            self.call(right, "--tool", "portable")["context"]["guidance"],
+            ["User-owned remote preference."],
+        )
+        self.put(right, "tool", "portable", record("Second machine update."))
+        self.call(right, "sync")
+        self.call(left, "sync")
+        self.assertEqual(
+            self.call(left, "--tool", "portable")["context"]["guidance"],
+            ["Second machine update."],
+        )
+        self.assertEqual(self.git(left, "rev-parse", "HEAD"), self.git(right, "rev-parse", "HEAD"))
+
     def test_two_copies_merge_separate_records_and_same_record_compatible_edits(self):
         left, right, _ = self.pair()
         self.put(left, "tool", "git", record("Local checks."))
