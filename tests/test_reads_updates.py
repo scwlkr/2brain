@@ -14,7 +14,7 @@ class ReadsAndUpdates(Scenario):
         empty_path = self.root / "no-programs"
         empty_path.mkdir()
         general = self.call(data, env={"PATH": str(empty_path)})
-        self.assertEqual(general["general"]["person"], "Shane Walker")
+        self.assertEqual(general["general"]["person"], "Fixture User")
         self.assertNotIn("context", general)
         tool = self.call(data, "--tool", "GIT", env={"PATH": str(empty_path)})
         self.assertNotIn("general", tool)
@@ -99,7 +99,7 @@ class ReadsAndUpdates(Scenario):
         result = subprocess.run([sys.executable, str(archive), "--data", str(clone), "--json"],
                                 cwd=self.root, env=self.env, capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout)["general"]["person"], "Shane Walker")
+        self.assertEqual(json.loads(result.stdout)["general"]["person"], "Fixture User")
 
     def test_authenticated_url_is_rejected_without_storing_credentials(self):
         data = self.initialize()

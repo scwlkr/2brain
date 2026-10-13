@@ -13,10 +13,10 @@ class Presentation(Scenario):
         data = self.initialize()
         plain = self.call(data, raw=True).stdout
         self.assertNotIn('\x1b', plain)
-        self.assertTrue(plain.startswith('Shane Walker\n'))
+        self.assertTrue(plain.startswith('Fixture User\n'))
         colored = self.call(data, '--color', 'always', raw=True).stdout
         self.assertIn('\x1b[38;2;148;180;156m', colored)
-        self.assertIn('2brain / Shane Walker', colored)
+        self.assertIn('2brain / Fixture User', colored)
         self.assertIn('Be concise.', colored)
         never = self.call(data, '--color', 'never', raw=True).stdout
         self.assertEqual(never, plain)

@@ -50,7 +50,7 @@ class Scenario(unittest.TestCase):
     def initialize(self):
         data = self.root / "local"
         self.call(data, "init")
-        self.put(data, "general", None, record("Be concise.", person="Shane Walker"))
+        self.put(data, "general", None, record("Be concise.", person="Fixture User"))
         return data
 
     def pair(self):
