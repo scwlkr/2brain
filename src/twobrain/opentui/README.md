@@ -2,8 +2,9 @@
 
 The terminal browser uses `@opentui/core` 0.6.2 with Bun 1.4.3. The Python CLI
 remains the owner of record validation, discovery, selective reads, and conflict
-behavior. The OpenTUI app calls that CLI's JSON interface through an argv array;
-it never reads credentials, writes records, or runs a shell command.
+behavior. The OpenTUI app calls that CLI through an argv array. Reads use the
+JSON interface. Saves send the full record to `put --file -` with the reason
+`edited via tui`. The app does not sync, read credentials, or run a shell.
 
 OpenTUI owns the render tree, flexible layout, select/input/scroll widgets,
 mouse/keyboard input, resizing, terminal modes, and cleanup. `main.ts` waits for
