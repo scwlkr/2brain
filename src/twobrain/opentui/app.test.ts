@@ -213,6 +213,55 @@ test("a rejected guidance save stays in the editor and leaves the file unchanged
   expect(readFileSync(join(f.root, "general.json"))).toEqual(before);
 });
 
+test("the add menu creates a tool and a project and refuses a duplicate", async () => {
+  const f = await writableFixture();
+  f.harness.mockInput.pressKey("a");
+  const menu = await f.frame();
+  expect(menu).toContain("New tool");
+  expect(menu).toContain("New project");
+  f.harness.mockInput.pressEnter();
+  expect(await f.frame()).toContain("Enter a tool name.");
+  f.harness.mockInput.typeText("ripgrep");
+  f.harness.mockInput.pressEnter();
+  expect(await f.frame()).toContain("Created ripgrep.");
+  expect(await f.frame()).toContain("ripgrep / tool");
+  const tool = JSON.parse(readFileSync(join(f.root, "tools/ripgrep.json"), "utf8"));
+  expect(tool).toEqual({schema_version: 1, guidance: [], pointers: []});
+  expect(f.backend.read(["--list"]).tools).toEqual(["ripgrep"]);
+  const log = Bun.spawnSync(["git", "-C", f.root, "log", "-1", "--format=%s"], {env: f.env, stdout: "pipe", stderr: "pipe"});
+  expect(new TextDecoder().decode(log.stdout)).toBe("2brain: update tools/ripgrep.json: edited via tui\n");
+
+  f.harness.mockInput.pressKey("a");
+  f.harness.mockInput.pressArrow("down");
+  f.harness.mockInput.pressEnter();
+  expect(await f.frame()).toContain("Enter owner/repo.");
+  f.harness.mockInput.typeText("acme/widget");
+  f.harness.mockInput.pressEnter();
+  expect(await f.frame()).toContain("Created acme/widget.");
+  const project = JSON.parse(readFileSync(join(f.root, "projects/acme/widget.json"), "utf8"));
+  expect(project).toEqual({schema_version: 1, guidance: [], pointers: []});
+  const listed = f.backend.read(["--list"]);
+  expect(listed.tools).toEqual(["ripgrep"]);
+  expect(listed.projects).toEqual(["acme/widget", "owner/repo"]);
+
+  const before = readFileSync(join(f.root, "tools/ripgrep.json"));
+  f.harness.mockInput.pressKey("a");
+  f.harness.mockInput.pressEnter();
+  f.harness.mockInput.typeText("Ripgrep");
+  f.harness.mockInput.pressEnter();
+  expect(await f.frame()).toContain("already exists");
+  expect(readFileSync(join(f.root, "tools/ripgrep.json"))).toEqual(before);
+
+  f.harness.mockInput.pressEscape();
+  await Bun.sleep(80); // Native stdin parser distinguishes Esc from an escape sequence.
+  f.harness.mockInput.pressKey("a");
+  f.harness.mockInput.pressEnter();
+  f.harness.mockInput.typeText("../nope");
+  f.harness.mockInput.pressEnter();
+  expect(await f.frame()).toContain("Invalid name");
+  expect(f.backend.read(["--list"]).tools).toEqual(["ripgrep"]);
+});
+
 test("NO_COLOR presentation retains default foreground and background for content",async () => {
   const f=await fixture(100,24,false); await f.frame();
   const spans=f.harness.captureSpans().lines.flatMap(line=>line.spans);
