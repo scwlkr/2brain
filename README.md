@@ -6,16 +6,34 @@ Python 3.10+ and Git 2.28+; no Python runtime packages, model, database, or serv
 
 ## Setup
 
-The CLI package and your personalization data stay separate. Install the CLI from this repository. Keep context in a local data directory you own, optionally synced through any Git remote you control. No credentials belong in records or remote URLs.
+The CLI package and your personalization data stay separate. Install the CLI from npm or from this repository. Keep context in a local data directory you own, optionally synced through any Git remote you control. No credentials belong in records or remote URLs.
 
-With [uv](https://docs.astral.sh/uv/guides/tools/) installed on macOS, Windows, or Linux:
+npm package `@2brain/cli` ships the `2brain` command. It embeds the Python CLI and runs it with Python 3.10+ from your PATH (override with `TWOBRAIN_PYTHON`). Personalization data is never part of the package.
+
+Stable channel (release builds, npm dist-tag `stable`):
+
+```sh
+npm install -g @2brain/cli@stable
+2brain init
+```
+
+Dev channel (builds from `main`, npm dist-tag `dev`):
+
+```sh
+npm install -g @2brain/cli@dev
+2brain --version
+```
+
+`npx @2brain/cli@stable --version` works the same without a global install. Channel policy lives in [RELEASING.md](RELEASING.md).
+
+With [uv](https://docs.astral.sh/uv/guides/tools/) instead of npm:
 
 ```sh
 uv tool install "git+https://github.com/scwlkr/2brain.git@stable"
 2brain init
 ```
 
-The package manager installs the CLI in its own environment and creates the platform launcher. It can acquire a compatible Python interpreter when needed. Your existing Git credential helper handles authentication for installs and sync. No token belongs in either command.
+uv installs the Python package `twobrain-cli` in its own environment and creates the platform launcher. It can acquire a compatible Python interpreter when needed. Your existing Git credential helper handles authentication for git installs and sync. No token belongs in either command.
 
 If uv reports its executable directory is missing from PATH, run `uv tool update-shell` once and reopen the terminal. On Windows, install uv through your normal package manager (for example `winget install --id astral-sh.uv --exact`) if it is not already available.
 
@@ -34,25 +52,32 @@ If you already keep context in a GitHub repository, `2brain setup owner/repo` ac
 
 Optional Codex wiring uses `--codex`. `2brain setup --codex` (with or without a remote) replaces global Codex personalization with only the short 2brain loader. It saves exact previous `AGENTS.md` and `AGENTS.override.md` bytes under the Codex home's inactive `2brain-backups/` directory, then removes the active override so the loader is used. It honors `CODEX_HOME`. Repeating setup makes no extra backup when the loader is already installed. Without `--codex`, agent instructions are untouched. Failed context initialization leaves agent instructions untouched. Restart Codex after setup so it sees the launcher and new instructions.
 
-Installation is a normal package install; it never clones personalization or edits agent instructions as an install hook. Personalization stays in your local data directory and optional remote. The `stable` branch advances only to published releases, so updates do not require a new URL. Git credential-helper behavior is documented by [uv](https://docs.astral.sh/uv/concepts/authentication/git/).
+Installation is a normal package install; it never clones personalization or edits agent instructions as an install hook. Personalization stays in your local data directory and optional remote. The git `stable` branch and the npm `stable` dist-tag advance only to published releases. Ordinary `main` commits feed the npm `dev` dist-tag. Git credential-helper behavior for uv git installs is documented by [uv](https://docs.astral.sh/uv/concepts/authentication/git/).
 
-To update an existing installation from a tag or commit pin, switch to `stable` once:
+To update npm installs:
+
+```sh
+npm install -g @2brain/cli@stable
+npm install -g @2brain/cli@dev
+```
+
+To update an existing uv installation from a tag or commit pin, switch to `stable` once:
 
 ```sh
 uv tool install --force --refresh "git+https://github.com/scwlkr/2brain.git@stable"
 2brain --version
 ```
 
-For subsequent releases:
+For subsequent uv releases:
 
 ```sh
 uv tool upgrade twobrain-cli
 2brain --version
 ```
 
-These commands update the CLI. Run `2brain sync` to exchange personalization changes with your other computers. Updating the CLI preserves local context, pending edits, history, and agent instructions. `twobrain-cli` is the package name; `2brain` is its executable.
+These commands update the CLI. Run `2brain sync` to exchange personalization changes with your other computers. Updating the CLI preserves local context, pending edits, history, and agent instructions. `@2brain/cli` is the npm package name; `twobrain-cli` is the Python package name; `2brain` is the executable in both cases.
 
-To select a specific release, use `uv tool install --force "git+https://github.com/scwlkr/2brain.git@v0.1.3"`. A tag or full commit SHA stays pinned when running `uv tool upgrade`; re-install with a different tag or `stable` to change it. To uninstall the CLI: `uv tool uninstall twobrain-cli`. Your context/history and Codex instruction backups remain available. Maintainers follow [RELEASING.md](RELEASING.md) to publish versions and advance `stable`.
+To select a specific git release with uv, use `uv tool install --force "git+https://github.com/scwlkr/2brain.git@v0.1.3"`. A tag or full commit SHA stays pinned when running `uv tool upgrade`; re-install with a different tag or `stable` to change it. To uninstall: `npm uninstall -g @2brain/cli` or `uv tool uninstall twobrain-cli`. Your context/history and Codex instruction backups remain available. Maintainers follow [RELEASING.md](RELEASING.md) to publish versions and advance `stable`.
 
 Advanced source installation remains available: run `python3 install.py --prefix ~/.local` from a clone on macOS/Linux, or `py -3 install.py --prefix "$env:LOCALAPPDATA\2brain-cli"` on Windows and add the resulting `bin` directory to PATH. You can also run `python3 2brain` directly, build a standalone archive with `python3 project build`, or install with `python3 -m pip install .`.
 
