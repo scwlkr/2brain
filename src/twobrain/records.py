@@ -59,7 +59,7 @@ def parse(raw, general=False):
     if not isinstance(guidance, list) or len(guidance) > (6 if general else 16):
         raise BrainError("guidance must be a list (at most 6 general or 16 specific entries).")
     for item in guidance:
-        check_text(item, 300, "guidance")
+        check_text(item, 300, "guidance", multiline=True)
     if general and sum(map(len, guidance)) > 1000:
         raise BrainError("General guidance exceeds 1,000 characters; move detail to tool/project records.")
     if "person" in value:
@@ -76,11 +76,15 @@ def parse(raw, general=False):
     return value
 
 
-def check_text(value, limit, label):
+def check_text(value, limit, label, *, multiline=False):
     if not isinstance(value, str) or not value.strip() or len(value) > limit:
         raise BrainError(f"{label} must contain 1–{limit} characters.")
-    if any(ord(char) < 32 or ord(char) == 127 for char in value):
-        raise BrainError(f"{label} must be one line without control characters.")
+    for char in value:
+        code = ord(char)
+        if code == 127 or (code < 32 and not (multiline and char == "\n")):
+            if multiline:
+                raise BrainError(f"{label} must not contain control characters.")
+            raise BrainError(f"{label} must be one line without control characters.")
 
 
 def safe_path(root, relative):
