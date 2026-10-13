@@ -41,7 +41,7 @@ def parser():
     views.add_argument("--project", metavar="OWNER/REPO")
     views.add_argument("--list", action="store_true", help="list names without loading records")
     actions = result.add_subparsers(dest="action")
-    browser = actions.add_parser("tui", help="browse local context in the read-only OpenTUI interface")
+    browser = actions.add_parser("tui", help="browse and edit local context in the OpenTUI interface")
     browser.add_argument("--theme", choices=["dark", "light"], default=argparse.SUPPRESS, help="brand theme (default: dark)")
     browser.add_argument("--setup", action="store_true", help="install and verify the pinned OpenTUI runtime without opening the UI")
     brand = actions.add_parser("brand", help="inspect or export the reusable brand board and guide")
