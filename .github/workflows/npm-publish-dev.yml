@@ -1,0 +1,48 @@
+name: npm publish dev
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+
+      - name: Require NPM_TOKEN
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "NPM_TOKEN secret is not configured. Skipping publish (scaffold only)."
+            echo "Add repository secret NPM_TOKEN with publish rights for @2brain/cli."
+            exit 0
+          fi
+          echo "token_present=true" >> "$GITHUB_ENV"
+
+      - name: Verify pack
+        if: env.token_present == 'true'
+        run: node scripts/verify-npm-pack.mjs
+
+      - name: Publish @dev
+        if: env.token_present == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          PY_VER="$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
+          SHORT="$(git rev-parse --short=7 HEAD)"
+          DEV_VER="${PY_VER}-dev.${SHORT}"
+          npm version "${DEV_VER}" --no-git-tag-version --allow-same-version
+          npm publish --tag dev --access public
+          echo "Published @2brain/cli@${DEV_VER} with dist-tag dev"
