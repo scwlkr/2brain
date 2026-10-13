@@ -3,6 +3,7 @@
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -49,7 +50,22 @@ def main():
     if args.action in {"check", "build"}:
         build(args.output)
         subprocess.run([sys.executable, str(args.output), "--version"], check=True)
+    if args.action == "check":
+        result = npm_pack_check()
+        if result:
+            return result
     return 0
+
+
+def npm_pack_check():
+    script = ROOT / "scripts/verify-npm-pack.mjs"
+    if not script.is_file():
+        return 0
+    node = shutil.which("node")
+    if not node:
+        print("skip npm pack verify: node not on PATH")
+        return 0
+    return subprocess.run([node, str(script)], cwd=ROOT).returncode
 
 
 def tui_check():
