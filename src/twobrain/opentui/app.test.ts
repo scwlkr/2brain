@@ -240,13 +240,21 @@ test("the add menu creates a tool and a project and refuses a duplicate", async 
   expect(await f.frame()).toContain("Enter a tool name.");
   f.harness.mockInput.typeText("ripgrep");
   f.harness.mockInput.pressEnter();
-  expect(await f.frame()).toContain("Created ripgrep.");
-  expect(await f.frame()).toContain("ripgrep / tool");
+  const createdTool = await f.frame();
+  expect(createdTool).toContain("EDIT GUIDANCE");
+  expect(createdTool).toContain("Blank line starts a new entry.");
   const tool = JSON.parse(readFileSync(join(f.root, "tools/ripgrep.json"), "utf8"));
   expect(tool).toEqual({schema_version: 1, guidance: [], pointers: []});
   expect(f.backend.read(["--list"]).tools).toEqual(["ripgrep"]);
   const log = Bun.spawnSync(["git", "-C", f.root, "log", "-1", "--format=%s"], {env: f.env, stdout: "pipe", stderr: "pipe"});
   expect(new TextDecoder().decode(log.stdout)).toBe("2brain: update tools/ripgrep.json: edited via tui\n");
+
+  f.harness.mockInput.typeText("Prefer ripgrep for search.");
+  f.harness.mockInput.pressKey("s", {ctrl: true});
+  const savedTool = await f.frame();
+  expect(savedTool).toContain("Saved guidance.");
+  expect(savedTool).toContain("ripgrep / tool");
+  expect(JSON.parse(readFileSync(join(f.root, "tools/ripgrep.json"), "utf8")).guidance).toEqual(["Prefer ripgrep for search."]);
 
   f.harness.mockInput.pressKey("a");
   f.harness.mockInput.pressArrow("down");
@@ -254,9 +262,18 @@ test("the add menu creates a tool and a project and refuses a duplicate", async 
   expect(await f.frame()).toContain("Enter owner/repo.");
   f.harness.mockInput.typeText("acme/widget");
   f.harness.mockInput.pressEnter();
-  expect(await f.frame()).toContain("Created acme/widget.");
+  const createdProject = await f.frame();
+  expect(createdProject).toContain("EDIT GUIDANCE");
   const project = JSON.parse(readFileSync(join(f.root, "projects/acme/widget.json"), "utf8"));
   expect(project).toEqual({schema_version: 1, guidance: [], pointers: []});
+  f.harness.mockInput.pressEscape();
+  await Bun.sleep(80); // Native stdin parser distinguishes Esc from an escape sequence.
+  const afterCancel = await f.frame();
+  expect(afterCancel).toContain("Edit cancelled.");
+  expect(afterCancel).toContain("acme/widget / project");
+  expect(JSON.parse(readFileSync(join(f.root, "projects/acme/widget.json"), "utf8"))).toEqual({
+    schema_version: 1, guidance: [], pointers: [],
+  });
   const listed = f.backend.read(["--list"]);
   expect(listed.tools).toEqual(["ripgrep"]);
   expect(listed.projects).toEqual(["acme/widget", "owner/repo"]);
