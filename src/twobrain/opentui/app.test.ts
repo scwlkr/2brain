@@ -32,6 +32,7 @@ async function fixture(width=100, height=24, color=true, theme: "dark" | "light"
 test("OpenTUI loads selective context, filters names, and reports empty results",async () => {
   const f=await fixture();
   expect(await f.frame()).toContain("General OpenTUI proof.");
+  expect(await f.frame()).toContain("Browse ·");
   f.harness.mockInput.pressKey("/");
   f.harness.mockInput.typeText("git");
   f.harness.mockInput.pressEnter();
@@ -42,6 +43,22 @@ test("OpenTUI loads selective context, filters names, and reports empty results"
   f.harness.mockInput.pressEnter();
   expect(await f.frame()).toContain("No matching records.");
   expect(await f.frame()).toContain("0/0 records");
+});
+
+test("read focus announces mode and edit enter keeps guidance visible",async () => {
+  const f=await fixture();
+  f.harness.mockInput.pressArrow("down");
+  f.harness.mockInput.pressEnter();
+  const reading=await f.frame();
+  expect(reading).toContain("Read ·");
+  expect(reading).toContain("Use local checks.");
+  f.harness.mockInput.pressEscape();
+  await Bun.sleep(80); // Native stdin parser distinguishes Esc from an escape sequence.
+  f.harness.mockInput.pressKey("e");
+  const editing=await f.frame();
+  expect(editing).toContain("EDIT GUIDANCE");
+  expect(editing).toContain("Use local checks.");
+  expect(editing).toContain("Blank line starts a new entry.");
 });
 
 test("narrow OpenTUI layout reads a record and returns to discovery",async () => {

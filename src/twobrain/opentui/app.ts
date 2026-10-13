@@ -1,7 +1,7 @@
 import {
   BoxRenderable, InputRenderable, InputRenderableEvents, RGBA, ScrollBoxRenderable,
   SelectRenderable, SelectRenderableEvents, TextRenderable, TextareaRenderable,
-  type CliRenderer, type KeyEvent,
+  createTimeline, type CliRenderer, type KeyEvent, type Timeline,
 } from "@opentui/core";
 import {Backend, document, guidanceToProse, proseToGuidance, type Entry, type StoredRecord} from "./backend.ts";
 
@@ -17,6 +17,8 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
   const line = settings.color ? p[light ? "fog" : "line"] : fg;
   let entries = backend.entries();
   let visible = entries;
+  const viewCache = new Map<string, string>();
+  let motion: Timeline | null = null;
   type Screen = {name: "browse" | "search" | "read"}
     | {name: "edit"; entry: Entry; pointers: StoredRecord["pointers"]; person?: string}
     | {name: "add"}
@@ -29,7 +31,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
   const search = new InputRenderable(renderer, {id: "search", placeholder: "/ search records", placeholderColor: muted, cursorColor: fg, textColor: fg, backgroundColor: bg, focusedBackgroundColor: bg, focusedTextColor: accent, marginBottom: 1});
   const body = new BoxRenderable(renderer, {id: "body", flexDirection: "row", flexGrow: 1, minHeight: 0});
   const list = new SelectRenderable(renderer, {id: "records", width: 32, flexShrink: 0, height: "100%",
-    backgroundColor: bg, focusedBackgroundColor: bg, textColor: muted, focusedTextColor: muted,
+    backgroundColor: bg, focusedBackgroundColor: bg, textColor: muted, focusedTextColor: fg,
     selectedBackgroundColor: settings.color ? p.sage : bg, selectedTextColor: settings.color ? p.ink : fg,
     selectedDescriptionColor: settings.color ? p.ink : fg, showDescription: false, showSelectionIndicator: true,
     options: []});
@@ -47,7 +49,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
   });
   const addMenu = new SelectRenderable(renderer, {
     id: "add-menu", width: "100%", flexGrow: 0, height: 0, visible: false,
-    backgroundColor: bg, focusedBackgroundColor: bg, textColor: fg, focusedTextColor: fg,
+    backgroundColor: bg, focusedBackgroundColor: bg, textColor: fg, focusedTextColor: accent,
     selectedBackgroundColor: settings.color ? p.sage : bg, selectedTextColor: settings.color ? p.ink : fg,
     showDescription: false, showSelectionIndicator: true,
     options: [
@@ -64,6 +66,57 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
   const help = new TextRenderable(renderer, {id: "help", fg: muted, height: 1, flexShrink: 0});
   for (const item of [heading, caption, search, body, editor, addMenu, nameInput, status, help]) root.add(item);
 
+  function entryKey(entry: Entry) {
+    return `${entry.kind}:${entry.name}`;
+  }
+
+  function invalidateViews(entry?: Entry) {
+    if (entry) viewCache.delete(entryKey(entry));
+    else viewCache.clear();
+  }
+
+  function cachedDocument(entry: Entry) {
+    const key = entryKey(entry);
+    const hit = viewCache.get(key);
+    if (hit !== undefined) return hit;
+    const rendered = document(backend.view(entry));
+    viewCache.set(key, rendered);
+    return rendered;
+  }
+
+  function stopMotion() {
+    if (!motion) return;
+    motion.pause();
+    motion = null;
+  }
+
+  function playMotion(build: (timeline: Timeline) => void) {
+    stopMotion();
+    motion = createTimeline({duration: 160, autoplay: true}, renderer);
+    build(motion);
+  }
+
+  function flashStatus(message: string, tone: "muted" | "accent" = "muted") {
+    status.fg = tone === "accent" ? accent : muted;
+    status.content = message;
+    status.opacity = 0.35;
+    playMotion(timeline => timeline.add(status, {opacity: 1, duration: 90, ease: "outQuad"}));
+  }
+
+  function modeLabel() {
+    if (screen.name === "edit") return "Edit";
+    if (screen.name === "add" || screen.name === "name") return "New";
+    if (screen.name === "search") return "Search";
+    if (screen.name === "read") return "Read";
+    return "Browse";
+  }
+
+  function recordStatus(extra?: string) {
+    const entry = visible[list.getSelectedIndex()];
+    const count = `${entry ? list.getSelectedIndex() + 1 : 0}/${visible.length}`;
+    flashStatus(extra ?? `${modeLabel()} · ${count} records`, screen.name === "edit" || screen.name === "read" ? "accent" : "muted");
+  }
+
   function layout() {
     const narrow = renderer.width < 78;
     const editing = screen.name === "edit";
@@ -74,6 +127,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     const searching = screen.name === "search";
     heading.content = narrow ? "2brain / local context" : "2brain / your context, close at hand";
     caption.content = editing ? "EDIT GUIDANCE" : adding || naming ? "NEW RECORD" : "LOCAL CONTEXT / EDITABLE";
+    caption.fg = editing || adding || naming || reading ? accent : muted;
     search.visible = !overlay;
     body.visible = !overlay;
     editor.visible = editing;
@@ -89,6 +143,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
       detail.visible = !narrow || reading;
       list.width = narrow ? "100%" : 32;
       detail.border = narrow ? false : ["left"];
+      detail.borderColor = reading ? accent : line;
       detail.paddingLeft = narrow ? 0 : 2;
     }
     help.content = editing ? "Alt+Enter or Ctrl+S save · Esc cancel"
@@ -101,10 +156,12 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
 
   function selection() {
     const entry = visible[list.getSelectedIndex()];
-    text.content = entry ? document(backend.view(entry)) : "No matching records. Press / to change the search, or Esc to clear it.";
+    text.content = entry ? cachedDocument(entry) : "No matching records. Press / to change the search, or Esc to clear it.";
     detail.scrollTo(0);
-    status.content = `${entry ? list.getSelectedIndex() + 1 : 0}/${visible.length} records`;
-    layout();
+    const count = `${entry ? list.getSelectedIndex() + 1 : 0}/${visible.length}`;
+    status.fg = muted;
+    status.content = `${modeLabel()} · ${count} records`;
+    status.opacity = 1;
   }
 
   function filter() {
@@ -112,15 +169,34 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     list.options = visible.map(entry => ({name: entry.kind === "general" ? "General" : `${entry.name} / ${entry.kind}`, description: "", value: entry}));
     list.setSelectedIndex(0);
     selection();
+    layout();
   }
 
   function focus(next: "search" | "list" | "detail") {
     screen = next === "search" ? {name: "search"} : next === "detail" ? {name: "read"} : {name: "browse"};
     (next === "search" ? search : next === "detail" ? detail : list).focus();
     layout();
+    if (next === "detail") {
+      detail.opacity = 0.72;
+      status.fg = accent;
+      status.content = `${modeLabel()} · ${visible[list.getSelectedIndex()] ? list.getSelectedIndex() + 1 : 0}/${visible.length} records`;
+      status.opacity = 0.35;
+      playMotion(timeline => {
+        timeline.add(detail, {opacity: 1, duration: 110, ease: "outQuad"});
+        timeline.add(status, {opacity: 1, duration: 90, ease: "outQuad"});
+      });
+      return;
+    }
+    detail.opacity = 1;
+    recordStatus();
   }
 
   function showBrowse() {
+    stopMotion();
+    editor.opacity = 1;
+    addMenu.opacity = 1;
+    detail.opacity = 1;
+    status.opacity = 1;
     screen = {name: "browse"};
     layout();
     list.focus();
@@ -128,15 +204,23 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
 
   function beginEdit() {
     const entry = visible[list.getSelectedIndex()];
-    if (!entry) { status.content = "No record selected."; return; }
+    if (!entry) { flashStatus("No record selected."); return; }
     const view = backend.view(entry);
     const data = view.context ?? view.general;
-    if (view.error || !data) { status.content = view.error || "No record to edit."; return; }
+    if (view.error || !data) { flashStatus(view.error || "No record to edit."); return; }
     screen = {name: "edit", entry, pointers: data.pointers ?? [], person: data.person};
     editor.setText(guidanceToProse(data.guidance));
-    status.content = "Blank line starts a new entry.";
     layout();
+    editor.opacity = 1;
+    editor.paddingLeft = 3;
     editor.focus();
+    status.fg = accent;
+    status.content = "Blank line starts a new entry.";
+    status.opacity = 0.35;
+    playMotion(timeline => {
+      timeline.add(editor, {paddingLeft: 0, duration: 120, ease: "outQuad"});
+      timeline.add(status, {opacity: 1, duration: 90, ease: "outQuad"});
+    });
   }
 
   function saveEdit() {
@@ -146,62 +230,74 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     const entry = screen.entry;
     try { backend.write(entry, record); }
     catch (error) {
-      status.content = error instanceof Error ? error.message : String(error);
+      flashStatus(error instanceof Error ? error.message : String(error));
       return;
     }
+    invalidateViews(entry);
     entries = backend.entries();
     showBrowse();
     filter();
     const index = visible.findIndex(item => item.kind === entry.kind && item.name === entry.name);
     if (index >= 0) list.setSelectedIndex(index);
-    status.content = "Saved guidance.";
+    selection();
+    flashStatus("Saved guidance.", "accent");
   }
 
   function leaveToBrowse(message: string) {
     showBrowse();
     selection();
-    status.content = message;
+    flashStatus(message);
   }
 
   function beginAdd() {
     screen = {name: "add"};
     addMenu.setSelectedIndex(0);
-    status.content = "Create a tool or project record.";
     layout();
+    addMenu.opacity = 1;
+    addMenu.paddingLeft = 3;
     addMenu.focus();
+    status.fg = accent;
+    status.content = "Create a tool or project record.";
+    status.opacity = 0.35;
+    playMotion(timeline => {
+      timeline.add(addMenu, {paddingLeft: 0, duration: 120, ease: "outQuad"});
+      timeline.add(status, {opacity: 1, duration: 90, ease: "outQuad"});
+    });
   }
 
   function beginName(kind: "tool" | "project") {
     screen = {name: "name", kind};
     nameInput.value = "";
     nameInput.placeholder = kind === "tool" ? "tool name" : "owner/repo";
-    status.content = kind === "tool" ? "Enter a tool name." : "Enter owner/repo.";
     layout();
     nameInput.focus();
+    flashStatus(kind === "tool" ? "Enter a tool name." : "Enter owner/repo.", "accent");
   }
 
   function createNamed() {
     if (screen.name !== "name") return;
     const kind = screen.kind;
     const name = nameInput.value.trim();
-    if (!name) { status.content = "Enter a name."; return; }
+    if (!name) { flashStatus("Enter a name."); return; }
     if (entries.some(item => item.kind === kind && item.name.toLowerCase() === name.toLowerCase())) {
-      status.content = `A ${kind} record named ${name} already exists.`;
+      flashStatus(`A ${kind} record named ${name} already exists.`);
       return;
     }
     const entry: Entry = {kind, name};
     try { backend.write(entry, {schema_version: 1, guidance: [], pointers: []}); }
     catch (error) {
-      status.content = error instanceof Error ? error.message : String(error);
+      flashStatus(error instanceof Error ? error.message : String(error));
       return;
     }
+    invalidateViews();
     entries = backend.entries();
     search.value = "";
     showBrowse();
     filter();
     const index = visible.findIndex(item => item.kind === kind && item.name === name);
     if (index >= 0) list.setSelectedIndex(index);
-    status.content = `Created ${name}. Press e to edit.`;
+    selection();
+    flashStatus(`Created ${name}. Press e to edit.`, "accent");
   }
 
   function key(key: KeyEvent) {
@@ -240,7 +336,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
       detail.scrollBy((renderer.height - 8) * (key.name === "pagedown" ? 1 : -1));
     } else if (reading && ["j", "k", "up", "down"].includes(key.name)) {
       detail.scrollBy(["j", "down"].includes(key.name) ? 1 : -1);
-    } else if (key.name === "r") { entries = backend.entries(); filter(); }
+    } else if (key.name === "r") { invalidateViews(); entries = backend.entries(); filter(); }
     else return;
     key.preventDefault();
   }
@@ -262,6 +358,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
   }
   focus("list");
   return {root, list, search, detail, text, dispose: () => {
+    stopMotion();
     renderer.keyInput.off("keypress", key); renderer.off("resize", layout); root.destroyRecursively();
   }};
 }
