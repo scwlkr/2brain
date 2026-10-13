@@ -25,4 +25,8 @@ Version tags select a particular release. `stable` points to the latest publishe
 
 6. In an isolated uv tool environment, install from `@stable`, check `2brain --version` and `2brain edit --help`, and run `uv tool upgrade twobrain-cli`. Confirm the installed source commit matches the tag and `stable`. Also verify installing the explicit version tag. Installing/upgrading the CLI must leave personalization untouched.
 
-Users who prefer a fixed version can install its tag. Rollback uses `uv tool install --force "git+https://github.com/scwlkr/2brain@v0.1.1"`; personalization remains in the separate context repository. Do not rewrite tags or shared history to roll back a user's installation.
+Users who prefer a fixed version can install its tag. Rollback uses `uv tool install --force "git+https://github.com/scwlkr/2brain@v0.1.1"`; personalization remains in the user's local data directory and optional remote. Do not rewrite tags or shared history to roll back a user's installation.
+
+## Packaging direction
+
+Today users install the Python package `twobrain-cli` from git (`@stable` for releases, `main` for development). A later unit will publish an npm package `@2brain/cli` with bin `2brain`, where `@dev` tracks `main` and `@stable` is a separate channel. This document does not cover that publish path yet.

@@ -13,7 +13,7 @@ class Setup(Scenario):
         (home / "AGENTS.md").write_bytes(b"Previous global preferences.\n")
         (home / "AGENTS.override.md").write_bytes(b"An old override.\n")
         result = self.call(data, "setup", str(remote), "--codex", env={"CODEX_HOME": str(home)})
-        self.assertEqual(self.call(data)["general"]["person"], "Shane Walker")
+        self.assertEqual(self.call(data)["general"]["person"], "Fixture User")
         self.assertTrue(result["instructions_changed"])
         self.assertFalse((home / "AGENTS.override.md").exists())
         text = (home / "AGENTS.md").read_text()
@@ -57,7 +57,7 @@ class Setup(Scenario):
         from pathlib import Path
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
         from twobrain.setup import expand_remote
-        self.assertEqual(expand_remote("scwlkr/2brain-context"), "https://github.com/scwlkr/2brain-context.git")
+        self.assertEqual(expand_remote("owner/my-2brain-context"), "https://github.com/owner/my-2brain-context.git")
         self.assertEqual(expand_remote("git@github.com:owner/repo.git"), "git@github.com:owner/repo.git")
 
     def test_concurrent_editor_change_is_preserved(self):

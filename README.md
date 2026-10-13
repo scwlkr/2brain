@@ -6,29 +6,35 @@ Python 3.10+ and Git 2.28+; no Python runtime packages, model, database, or serv
 
 ## Setup
 
-The CLI and personalization live in **separate repositories**:
+The CLI package and your personalization data stay separate. Install the CLI from this repository. Keep context in a local data directory you own, optionally synced through any Git remote you control. No credentials belong in records or remote URLs.
 
-- Source: `scwlkr/2brain` (private).
-- Shane's context: `scwlkr/2brain-context` (private).
-
-Use your existing Git/GitHub authentication. No credentials belong in records or remote URLs.
-
-With [uv](https://docs.astral.sh/uv/guides/tools/) installed, setup is two commands on macOS, Windows or Linux:
+With [uv](https://docs.astral.sh/uv/guides/tools/) installed on macOS, Windows, or Linux:
 
 ```sh
 uv tool install "git+https://github.com/scwlkr/2brain.git@stable"
-2brain setup scwlkr/2brain-context --codex
+2brain init
 ```
 
-The package manager installs the CLI in its own environment and creates the platform launcher. It can acquire a compatible Python interpreter when needed. Git and access to the two private repositories are still required; your existing Git credential helper handles authentication. No token belongs in either command.
+The package manager installs the CLI in its own environment and creates the platform launcher. It can acquire a compatible Python interpreter when needed. Your existing Git credential helper handles authentication for installs and sync. No token belongs in either command.
 
-If uv reports its executable directory is missing from PATH, run `uv tool update-shell` once and reopen the terminal. On Windows, install uv through your normal package manager (for example `winget install --id astral-sh.uv --exact`) if it is not already available. Restart Codex after setup so it sees the launcher and new instructions.
+If uv reports its executable directory is missing from PATH, run `uv tool update-shell` once and reopen the terminal. On Windows, install uv through your normal package manager (for example `winget install --id astral-sh.uv --exact`) if it is not already available.
 
-`setup owner/repo` accepts an actual GitHub repository name or a full Git URL. It clones context when absent and otherwise preserves the existing local copy, including manual edits. It refuses a different remote rather than silently switching datasets. To reuse your current context, run `2brain setup --codex`.
+`2brain init` creates empty context offline. `2brain init --seed <record-directory>` copies supplied records without networking. Existing directories are never replaced. Git needs your existing `user.name`/`user.email` configuration for commits. Failed initialization retains partial work at the path reported in its error.
 
-`--codex` explicitly replaces global Codex personalization with only the short 2brain loader. It saves exact previous `AGENTS.md` and `AGENTS.override.md` bytes under the Codex home's inactive `2brain-backups/` directory, then removes the active override so the loader is used. It honors `CODEX_HOME`. Repeating setup makes no extra backup when the loader is already installed. Without `--codex`, agent instructions are untouched. Failed context initialization leaves agent instructions untouched.
+To sync across machines, point context at a remote you own, then sync:
 
-Installation is a normal package install; it never clones personalization or edits agent instructions as an install hook. Personalization stays in its separate private repository and local data copy. The `stable` branch advances only to published releases, so updates do not require a new URL. Git credential-helper behavior is documented by [uv](https://docs.astral.sh/uv/concepts/authentication/git/).
+```sh
+2brain remote <URL>
+2brain sync
+```
+
+On additional computers, clone with `2brain init --remote <URL>`. The CLI accepts normal Git transports (HTTPS, SSH, or a path). Privacy is set by how you create the remote, not by local reads.
+
+If you already keep context in a GitHub repository, `2brain setup owner/repo` accepts a GitHub name or a full Git URL. It clones when absent and otherwise preserves the existing local copy, including manual edits. It refuses a different remote rather than silently switching datasets.
+
+Optional Codex wiring uses `--codex`. `2brain setup --codex` (with or without a remote) replaces global Codex personalization with only the short 2brain loader. It saves exact previous `AGENTS.md` and `AGENTS.override.md` bytes under the Codex home's inactive `2brain-backups/` directory, then removes the active override so the loader is used. It honors `CODEX_HOME`. Repeating setup makes no extra backup when the loader is already installed. Without `--codex`, agent instructions are untouched. Failed context initialization leaves agent instructions untouched. Restart Codex after setup so it sees the launcher and new instructions.
+
+Installation is a normal package install; it never clones personalization or edits agent instructions as an install hook. Personalization stays in your local data directory and optional remote. The `stable` branch advances only to published releases, so updates do not require a new URL. Git credential-helper behavior is documented by [uv](https://docs.astral.sh/uv/concepts/authentication/git/).
 
 To update an existing installation from a tag or commit pin, switch to `stable` once:
 
@@ -52,9 +58,7 @@ Advanced source installation remains available: run `python3 install.py --prefix
 
 Default local data: `~/Library/Application Support/2brain` on macOS, `%LOCALAPPDATA%\2brain` on Windows, `$XDG_DATA_HOME/2brain` (or `~/.local/share/2brain`) on Linux. Override with `TWOBRAIN_HOME` or `--data <directory>` anywhere in the command. These locate the dataset, not project checkouts.
 
-For an offline start, `2brain init` creates empty context; `2brain init --seed <record-directory>` copies supplied records without networking. Existing directories are never replaced. Git needs your existing `user.name`/`user.email` configuration for commits. Failed initialization retains partial work at the path reported in its error.
-
-To use your own private remote, create an **empty private repository**, then `2brain remote <URL>` and `2brain sync`. `remote` changes local Git configuration only. On additional computers, clone it with `init --remote`. The CLI supports normal Git transports; privacy is set on GitHub when you create the repository, not enforced by local reads.
+`remote` changes local Git configuration only. Create an empty repository on any host when you want a private backup, then attach it with `2brain remote <URL>`.
 
 ## Read only what you need
 
@@ -114,10 +118,10 @@ geometry, lettering, and color values are interpreted rather than exact original
 ```sh
 2brain
 2brain --tool git
-2brain --project scwlkr/wstack
-2brain --project wstack       # works if the repository name is unique
+2brain --project owner/example-repo
+2brain --project example-repo       # works if the repository name is unique
 2brain --list
-2brain --project scwlkr/wstack --json
+2brain --project owner/example-repo --json
 ```
 
 Discovery lists names without opening other records. Default guidance allows at most six entries and 1,000 characters, plus four pointers. Tool reads return just that tool. Project reads include general guidance followed by the repository record; JSON explicitly gives precedence as current instructions → project → general. Free-text guidance remains instructions for the receiving agent, rather than executable policy. An ambiguous unqualified repository name requires `owner/repo`; no aliases or per-computer checkout mappings exist.
@@ -158,7 +162,7 @@ Create a UTF-8 file such as `git.json`:
 2brain undo <commit-SHA> --reason "User asked to undo that update"
 ```
 
-`put` creates or replaces exactly one record and commits locally. `--file -` reads JSON from stdin. A general record may also contain `"person": "Shane Walker"`; leave unknown preferences unfilled. Inspect existing record JSON through `--json` (the record is under `general` or `context`). Records contain only `schema_version`, `guidance`, `pointers`, and optional general `person`.
+`put` creates or replaces exactly one record and commits locally. `--file -` reads JSON from stdin. A general record may also contain `"person": "Fixture User"`; leave unknown preferences unfilled. Inspect existing record JSON through `--json` (the record is under `general` or `context`). Records contain only `schema_version`, `guidance`, `pointers`, and optional general `person`.
 
 You may instead edit the JSON files directly in the data directory, then run `2brain save --reason "User's decision"`. `status` shows that directory, revision, dirty state, and pending conflicts. Save existing manual edits before using `put`, `remove`, or `undo`. Invalid records are left intact with an actionable error. Updates never contact a network. `undo` adds a revert commit for an ordinary update; initial/merge commits require deliberately restoring chosen record contents with `put`.
 
