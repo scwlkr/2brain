@@ -3,7 +3,7 @@ import {
   SelectRenderable, SelectRenderableEvents, TextRenderable, TextareaRenderable,
   createTimeline, type CliRenderer, type KeyEvent, type Timeline,
 } from "@opentui/core";
-import {Backend, document, guidanceToProse, proseToGuidance, type Entry, type StoredRecord} from "./backend.ts";
+import {Backend, documentStyled, guidanceToProse, proseToGuidance, type Entry, type StoredRecord, type View} from "./backend.ts";
 
 export type Settings = {theme: "dark" | "light"; color: boolean; palette: Record<string, string>; initial?: Entry};
 
@@ -17,7 +17,8 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
   const line = settings.color ? p[light ? "fog" : "line"] : fg;
   let entries = backend.entries();
   let visible = entries;
-  const viewCache = new Map<string, string>();
+  const viewCache = new Map<string, View>();
+  const roles = {accent, muted, fg};
   let motion: Timeline | null = null;
   type Screen = {name: "browse" | "search" | "read"}
     | {name: "edit"; entry: Entry; pointers: StoredRecord["pointers"]; person?: string}
@@ -75,13 +76,13 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     else viewCache.clear();
   }
 
-  function cachedDocument(entry: Entry) {
+  function cachedView(entry: Entry) {
     const key = entryKey(entry);
     const hit = viewCache.get(key);
     if (hit !== undefined) return hit;
-    const rendered = document(backend.view(entry));
-    viewCache.set(key, rendered);
-    return rendered;
+    const view = backend.view(entry);
+    viewCache.set(key, view);
+    return view;
   }
 
   function stopMotion() {
@@ -156,7 +157,9 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
 
   function selection() {
     const entry = visible[list.getSelectedIndex()];
-    text.content = entry ? cachedDocument(entry) : "No matching records. Press / to change the search, or Esc to clear it.";
+    text.content = entry
+      ? documentStyled(cachedView(entry), roles)
+      : "No matching records. Press / to change the search, or Esc to clear it.";
     detail.scrollTo(0);
     const count = `${entry ? list.getSelectedIndex() + 1 : 0}/${visible.length}`;
     status.fg = muted;
@@ -205,7 +208,7 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
   function beginEdit() {
     const entry = visible[list.getSelectedIndex()];
     if (!entry) { flashStatus("No record selected."); return; }
-    const view = backend.view(entry);
+    const view = cachedView(entry);
     const data = view.context ?? view.general;
     if (view.error || !data) { flashStatus(view.error || "No record to edit."); return; }
     screen = {name: "edit", entry, pointers: data.pointers ?? [], person: data.person};
