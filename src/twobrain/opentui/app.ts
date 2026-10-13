@@ -295,12 +295,10 @@ export function createBrowser(renderer: CliRenderer, backend: Backend, settings:
     invalidateViews();
     entries = backend.entries();
     search.value = "";
-    showBrowse();
     filter();
     const index = visible.findIndex(item => item.kind === kind && item.name === name);
     if (index >= 0) list.setSelectedIndex(index);
-    selection();
-    flashStatus(`Created ${name}. Press e to edit.`, "accent");
+    beginEdit();
   }
 
   function key(key: KeyEvent) {
