@@ -33,6 +33,7 @@ test("OpenTUI loads selective context, filters names, and reports empty results"
   const f=await fixture();
   expect(await f.frame()).toContain("General OpenTUI proof.");
   expect(await f.frame()).toContain("Browse ·");
+  expect(await f.frame()).toContain("type filter");
   f.harness.mockInput.pressKey("/");
   f.harness.mockInput.typeText("git");
   f.harness.mockInput.pressEnter();
@@ -43,6 +44,22 @@ test("OpenTUI loads selective context, filters names, and reports empty results"
   f.harness.mockInput.pressEnter();
   expect(await f.frame()).toContain("No matching records.");
   expect(await f.frame()).toContain("0/0 records");
+});
+
+test("browse mode type-to-filter without slash, keeping e for edit", async () => {
+  const f = await fixture();
+  expect(await f.frame()).toContain("Browse ·");
+  f.harness.mockInput.typeText("git");
+  const filtered = await f.frame();
+  expect(filtered).toContain("Use local checks.");
+  expect(filtered).toContain("1/1 records");
+  expect(filtered).toContain("Search ·");
+  f.harness.mockInput.pressEnter();
+  expect(await f.frame()).toContain("Browse ·");
+  f.harness.mockInput.pressKey("e");
+  const editing = await f.frame();
+  expect(editing).toContain("EDIT GUIDANCE");
+  expect(editing).toContain("Use local checks.");
 });
 
 test("read focus announces mode and edit enter keeps guidance visible",async () => {
