@@ -230,6 +230,25 @@ Local tests exercise selective concise reads, no-Git offline reads, JSON, explic
 
 Add a portable Karpathy-style knowledge layer alongside your context records:
 
+For local inference, install and open Ollama, disable its cloud features as
+described in the [local setup guide](docs/llm-wiki.md#local-ollama-model), then run:
+
+```sh
+2brain wiki local --setup        # qwen3.5:35b → 2brain-wiki, 32K context
+2brain wiki init                 # once, in your existing context
+2brain wiki ingest --file notes.md --origin 'meeting:planning'
+2brain wiki compile --local
+2brain wiki query 'What have we learned?' --local
+2brain wiki digest --local
+2brain wiki lint
+```
+
+The default local workflow needs no API key, ignores hosted-provider settings,
+and has no cloud fallback. Start with small source batches; model weights need
+about 22 GB of disk space. `2brain wiki local` checks real JSON inference.
+
+For manual compilation with your terminal agent:
+
 ```sh
 2brain wiki init
 2brain wiki ingest --file notes.md --origin 'meeting:planning'
@@ -245,7 +264,8 @@ Immutable `raw/` evidence, linked Markdown in `wiki/`, generated index/log,
 provenance checks and ordinary Git sync. Open the data folder in Obsidian.
 `wiki compile --agent <json-agent>` runs your chosen model; `wiki cycle` polls an
 export inbox for recurring ingestion. Cited deep dives, daily reports and optional
-TTS audio use the same adapter contract. Reads stay offline.
+TTS audio use the same adapter contract. Ordinary reads stay offline; explicit
+`--local` requests contact only the loopback model server.
 
 See the [complete workflow, agent protocol and scheduling guide](docs/llm-wiki.md)
 and the [periodic lint skill](skills/wiki-lint/SKILL.md). Source account exporters,

@@ -65,7 +65,61 @@ agent instructions. The agent contract requires source claims, interpretations,
 uncertainties and contradictions to be distinguished. Validation checks links
 and provenance; semantic accuracy still depends on the compiling model.
 
-## Included JSON model adapter
+## Local Ollama model
+
+Install [Ollama for macOS](https://ollama.com/download/mac) and open it once.
+Keep its server bound to the default `127.0.0.1:11434`. To disable cloud models
+and web search, merge `"disable_ollama_cloud": true` into `~/.ollama/server.json`
+and restart Ollama. Preserve any other settings in that file. Ollama also supports
+`OLLAMA_NO_CLOUD=1`; see its [configuration guide](https://docs.ollama.com/faq).
+The adapter never starts a public listener or enables cloud features.
+
+```sh
+2brain wiki local --setup        # pull model, create alias, test actual JSON inference
+2brain wiki local                # check runtime, daemon, alias and JSON inference
+2brain wiki init                 # once, in an existing context repository
+2brain wiki ingest --file notes.md --origin 'meeting:planning'
+2brain wiki compile --local
+2brain wiki query 'What have we learned?' --local
+2brain wiki digest --local
+2brain wiki cycle --inbox /absolute/private-inbox --local
+```
+
+Health/setup works before context initialization and does not read or change
+wiki data. Setup reuses downloaded Ollama blobs. The base is `qwen3.5:35b`
+(about 22 GB), with a `2brain-wiki` alias equivalent to:
+
+```text
+FROM qwen3.5:35b
+PARAMETER num_ctx 32768
+```
+
+Start with a few short, related sources per compilation. The 32K context must
+hold the contract, existing wiki pages, pending sources and model output together;
+the 2 MiB per-file ingestion limit is not a model context budget. Compile before
+adding the next small batch, and check lint afterward. Very large wikis need a
+separate adapter that selects evidence within its context budget.
+
+No key or environment setup is needed for the default local installation.
+`--local` uses `http://127.0.0.1:11434/v1/chat/completions`, model `2brain-wiki`,
+JSON-object output and `reasoning_effort="none"`. It ignores all `TWOBRAIN_LLM_*`
+provider settings and credentials, bypasses HTTP proxies, rejects redirects and
+cloud model names, and never retries with a hosted provider. Ollama cloud features
+must also stay disabled: a custom local alias can otherwise hide a cloud model.
+`--local` and `--agent` cannot be combined.
+
+For another loopback server or local model, use `TWOBRAIN_LOCAL_LLM_URL` and
+`TWOBRAIN_LOCAL_LLM_MODEL`. Only `localhost` and literal loopback addresses are
+accepted. `2brain wiki agent --local` exposes the same adapter to external tools.
+Missing runtime, stopped daemon, missing alias, malformed JSON and inference
+failures return an error. Captured sources remain pending after failed compilation;
+fix the runtime/model and rerun `wiki compile --local`.
+
+Use `ollama ps` during inference to inspect GPU placement and context length.
+Performance depends on model, source size and other applications; setup does not
+claim a throughput target. No scheduler is enabled by these commands.
+
+## Included remote JSON model adapter
 
 `2brain wiki agent` supports an OpenAI-compatible HTTPS chat-completions endpoint
 with JSON-object output. Set `TWOBRAIN_LLM_MODEL` and `TWOBRAIN_LLM_API_KEY` in your
