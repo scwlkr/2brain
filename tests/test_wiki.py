@@ -122,3 +122,25 @@ class WikiTests(Scenario):
         self.assertEqual(result['audio'], str(output))
         self.call(data, 'wiki', 'digest', '--tts', command, '--audio', str(output), expect=1)
         self.assertFalse(self.call(data, 'status')['dirty'])
+
+    def test_validation_errors_do_not_echo_generated_payloads(self):
+        data, _, key = self.wiki()
+        revision = self.git(data, 'rev-parse', 'HEAD')
+        raw = (data / f'raw/{key}.md').read_bytes()
+        sentinel = 'SYNTHETIC_PRIVATE_PROVIDER_PAYLOAD'
+        bad = self.compilation(key)
+        bad['pages'] = {sentinel: bad['pages']['durable-memory.md']}
+        error = self.apply(data, bad, expect=1)
+        self.assertIn('Invalid compilation page', error['error'])
+        self.assertNotIn(sentinel, error['error'])
+        for target, message in [(sentinel, 'broken or unsupported local link'),
+                                ('../raw/' + 'a' * 64 + '.md', 'unknown source')]:
+            bad = self.compilation(key)
+            bad['pages']['durable-memory.md'] += '\n[Bad link](' + target + ')\n'
+            error = self.apply(data, bad, expect=1)
+            self.assertIn(message, error['error'])
+            self.assertNotIn(target, error['error'])
+        self.assertEqual(revision, self.git(data, 'rev-parse', 'HEAD'))
+        self.assertEqual(raw, (data / f'raw/{key}.md').read_bytes())
+        self.assertEqual(set(self.call(data, 'wiki', 'compile')['pending_sources']), {key})
+        self.assertFalse(self.call(data, 'status')['dirty'])

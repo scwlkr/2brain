@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+from http.client import HTTPException
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, HTTPRedirectHandler, build_opener
@@ -64,7 +65,11 @@ def respond(prompt):
             if len(raw) > 20 * 1024 * 1024:
                 raise BrainError('Model response exceeds 20 MiB.')
         result = json.loads(raw)
+        if not isinstance(result, dict) or not isinstance(result.get('choices'), list) or not result['choices']:
+            raise ValueError('Expected chat-completions choices')
         choice = result['choices'][0]
+        if not isinstance(choice, dict) or not isinstance(choice.get('message'), dict):
+            raise ValueError('Expected a chat-completions message')
         if choice.get('finish_reason') not in (None, 'stop'):
             raise BrainError('Model output was truncated or interrupted; use a larger context/output budget or smaller source batch.')
         output = json.loads(choice['message']['content'])
@@ -80,6 +85,8 @@ def respond(prompt):
         raise BrainError(f'Model endpoint returned HTTP {exc.code}; {advice}.') from exc
     except URLError as exc:
         raise BrainError('Model endpoint unavailable; check network and TLS configuration.') from exc
+    except HTTPException as exc:
+        raise BrainError('Model endpoint returned an invalid or incomplete HTTP response; retry or check provider/TLS configuration.') from exc
     except (TimeoutError, OSError) as exc:
         raise BrainError('Model request failed or timed out; check network and TLS configuration, then retry.') from exc
     except (ValueError, KeyError, IndexError, TypeError) as exc:

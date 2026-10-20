@@ -109,7 +109,9 @@ emit a bundle to a private local file and invoke the adapter yourself:
 
 The second command contacts your provider and may incur charges. HTTP 401 points
 to the API key, 403 to model permissions, 404 to the endpoint/model, and 429 to
-quota or rate limits. Errors omit provider bodies and configuration values.
+quota or rate limits. Model-adapter errors omit provider bodies and configuration
+values. Invalid generated page names and link targets are not echoed in validation
+errors; inspect the local result file or named page to correct them.
 External agent stderr is not replayed by compile/cycle because it may contain
 private text; run your adapter directly to see its diagnostics. After correcting
 the configuration, rerun compile or cycle; unchanged exports are not duplicated.

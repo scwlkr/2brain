@@ -106,3 +106,65 @@ class AdapterTests(unittest.TestCase):
                     respond({})
                 self.assertIn('network', str(error.exception))
                 self.assertNotIn('fixture-secret', str(error.exception))
+
+    @patch.dict('os.environ', {'TWOBRAIN_LLM_MODEL': 'fixture', 'TWOBRAIN_LLM_API_KEY': 'fixture-secret'}, clear=True)
+    @patch('twobrain.wiki_agent.build_opener')
+    def test_malformed_provider_protocol_and_shapes_are_redacted_on_stderr(self, opener):
+        import io
+        from contextlib import redirect_stderr, redirect_stdout
+        from http.client import BadStatusLine, IncompleteRead
+        from twobrain.wiki_agent import main
+        sentinel = 'SYNTHETIC_PRIVATE_PROVIDER_PAYLOAD'
+        malformed = [None, [], {'choices': []}, {'choices': [None]},
+                     {'choices': [sentinel]}, {'choices': [42]},
+                     {'choices': [{'message': sentinel}]},
+                     {'choices': [{'message': {'content': sentinel}}]}]
+        for body in malformed:
+            with self.subTest(body=body):
+                response = self.response()
+                response.read.return_value = json.dumps(body).encode()
+                opener.return_value.open.side_effect = None
+                opener.return_value.open.return_value = response
+                output, error = io.StringIO(), io.StringIO()
+                with patch('sys.stdin', io.StringIO('{}')), redirect_stdout(output), redirect_stderr(error):
+                    self.assertEqual(main(), 1)
+                self.assertEqual(output.getvalue(), '')
+                self.assertIn('complete JSON chat-completions result', error.getvalue())
+                self.assertNotIn(sentinel, error.getvalue())
+                self.assertNotIn('fixture-secret', error.getvalue())
+                self.assertNotIn('Traceback', error.getvalue())
+        for failure in [BadStatusLine(sentinel), IncompleteRead(sentinel.encode())]:
+            with self.subTest(failure=type(failure).__name__):
+                opener.return_value.open.side_effect = failure
+                output, error = io.StringIO(), io.StringIO()
+                with patch('sys.stdin', io.StringIO('{}')), redirect_stdout(output), redirect_stderr(error):
+                    self.assertEqual(main(), 1)
+                self.assertEqual(output.getvalue(), '')
+                self.assertIn('invalid or incomplete HTTP response', error.getvalue())
+                self.assertNotIn(sentinel, error.getvalue())
+                self.assertNotIn('fixture-secret', error.getvalue())
+                self.assertNotIn('Traceback', error.getvalue())
+
+    @patch.dict('os.environ', {'TWOBRAIN_LLM_MODEL': 'SYNTHETIC_MODEL', 'TWOBRAIN_LLM_API_KEY': 'SYNTHETIC_KEY'}, clear=True)
+    def test_cli_preflight_never_reads_input_or_uses_network(self):
+        import io
+        from contextlib import redirect_stderr, redirect_stdout
+        from twobrain.cli import main
+        output, error = io.StringIO(), io.StringIO()
+        blocked = AssertionError('Preflight attempted input, network or repository access')
+        with patch('sys.stdin') as stdin, patch('socket.socket', side_effect=blocked), \
+                patch('socket.getaddrinfo', side_effect=blocked), \
+                patch('socket.create_connection', side_effect=blocked), \
+                patch('twobrain.wiki_agent.build_opener', side_effect=blocked), \
+                patch('twobrain.cli.require_repository', side_effect=blocked), \
+                redirect_stdout(output), redirect_stderr(error):
+            stdin.read.side_effect = blocked
+            stdin.readline.side_effect = blocked
+            stdin.buffer.read.side_effect = blocked
+            self.assertEqual(main(['wiki', 'agent', '--check', '--json']), 0)
+            stdin.read.assert_not_called()
+            stdin.readline.assert_not_called()
+            stdin.buffer.read.assert_not_called()
+        self.assertTrue(json.loads(output.getvalue())['ready'])
+        self.assertFalse(json.loads(output.getvalue())['network_checked'])
+        self.assertNotIn('SYNTHETIC_', output.getvalue() + error.getvalue())

@@ -171,7 +171,7 @@ def link_errors(root, content, source_ids):
     cited = set()
     for name, body in content.items():
         if not PAGE.fullmatch(name) or name in {"index.md", "log.md"}:
-            errors.append(f"Invalid page filename: {name}")
+            errors.append("Invalid page filename; use a lowercase hyphenated .md topic filename.")
             continue
         if not body.startswith("# ") or "\n## Sources\n" not in body:
             errors.append(f"{name}: needs a title and ## Sources section")
@@ -185,14 +185,14 @@ def link_errors(root, content, source_ids):
             raw = re.fullmatch(r"\.\./raw/([0-9a-f]{64})\.md", target)
             if raw:
                 if raw[1] not in source_ids:
-                    errors.append(f"{name}: unknown source {target}")
+                    errors.append(f"{name}: unknown source; cite a captured source ID")
                 else:
                     local_citations.add(raw[1])
                 continue
             if target in content or target in {"index.md", "log.md", "AGENTS.md"}:
                 incoming.add(target)
             else:
-                errors.append(f"{name}: broken or unsupported local link {target}")
+                errors.append(f"{name}: broken or unsupported local link; use an existing topic filename or ../raw/<source-id>.md")
         if not local_citations:
             errors.append(f"{name}: needs a link to immutable source evidence")
         cited.update(local_citations)
@@ -215,7 +215,7 @@ def apply(root, result, base=None):
     check_text(result["summary"], 2000, "compilation summary", multiline=True)
     for name, body in updates.items():
         if not PAGE.fullmatch(name) or name in {"index.md", "log.md"} or not isinstance(body, str) or len(body.encode()) > LIMIT:
-            raise BrainError(f"Invalid compilation page: {name}")
+            raise BrainError("Invalid compilation page; use a lowercase hyphenated .md topic filename and Markdown text up to 2 MiB.")
     content = {**pages(root), **updates}
     errors, cited, _ = link_errors(root, content, set(state["sources"]))
     incorporated = set(sources) | {key for key, item in state["sources"].items() if item["compiled"]}

@@ -31,3 +31,15 @@ test; no live model, account exporter, audio service or scheduler was activated.
 Published npm dev version and CLI version/help were checked independently.
 See docs/llm-wiki.md for setup checks and local troubleshooting. Review the scoped
 draft before any merge: current authorization does not cover another npm release.
+
+Adversarial follow-up: sanitized malformed HTTP protocol failures and rejected
+non-object provider choices without tracebacks. Validation no longer echoes
+invalid generated page names or local link targets. Regression tests cover
+redaction, original-source preservation and preflight with network/stdin/repository
+access blocked. An extracted npm package passed a 41-command fresh-user walkthrough
+using synthetic exports and a deterministic local agent, plus four injected
+provider failures. Manual apply/retry, idempotent polling, cited outputs, unchanged
+context reads and local bare-remote sync/clone were exercised. Live provider access
+and private-source behavior remain unverified; no scheduler was activated.
+Checks: 68 Python tests, TypeScript, 25 OpenTUI tests, archive smoke and npm pack
+verification passed; all 17 wiki tests passed again after final target redaction.
