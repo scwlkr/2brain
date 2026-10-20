@@ -58,17 +58,23 @@ class LocalTests(Scenario):
                               '\n'.join(f'- [Source](../raw/{key}.md)' for key in keys) + '\n'},
                               'summary': 'Recorded Markdown memory.', 'sources': keys}
                     if owner.mode == 'generated-index':
+                        result['pages']['memory.md'] += '\n[Index](../wiki/index.md)\n'
                         result['pages'].update({'index.md': 'Model-owned index must be discarded',
                                                 'log.md': 'Model-owned log must be discarded'})
                 elif 'context' in prompt:
+                    owner.assertIn('["wiki/memory.md"]', body['messages'][0]['content'])
                     # Conflicting compilation/narrative schemas caused real local models
                     # to return pages instead of a cited answer.
                     if 'Compilation output is JSON only' in prompt['instructions']:
                         result = {'pages': {}, 'summary': 'Wrong task', 'sources': []}
                     else:
                         result = {'content': 'Use Markdown. [Memory](wiki/memory.md)', 'citations': ['wiki/memory.md']}
-                    if owner.mode == 'citation-repair-fails' or (owner.mode == 'citation-repair' and 'previous_result' not in prompt):
+                    if owner.mode == 'generated-index':
                         result = {'content': 'Use Markdown.', 'citations': ['wiki/memory.md']}
+                    if owner.mode == 'citation-repair' and 'previous_result' not in prompt:
+                        result = {'text': 'Wrong response shape'}
+                    if owner.mode == 'citation-repair-fails':
+                        result = {'content': 'Use Markdown.', 'citations': ['wiki/not-supplied.md']}
                 else:
                     result = {'ok': True}
                 response = {'choices': [{'finish_reason': 'length' if owner.mode == 'truncated' else 'stop',
@@ -106,10 +112,12 @@ class LocalTests(Scenario):
         self.mode = 'generated-index'
         self.call(data, 'wiki', 'compile', '--local')
         self.assertIn(key, (data / 'wiki/memory.md').read_text())
+        self.assertIn('[Index](index.md)', (data / 'wiki/memory.md').read_text())
         self.assertNotIn('Model-owned', (data / 'wiki/index.md').read_text())
         self.assertNotIn('Model-owned', (data / 'wiki/log.md').read_text())
         self.assertTrue(self.call(data, 'wiki', 'lint')['ok'])
         self.assertIn('wiki/memory.md', self.call(data, 'wiki', 'query', 'memory', '--local')['citations'])
+        self.assertIn('](wiki/memory.md)', self.call(data, 'wiki', 'query', 'memory', '--local')['content'])
         self.assertIn('wiki/memory.md', self.call(data, 'wiki', 'query', 'What have we learned?', '--local')['citations'])
         self.assertIn('wiki/memory.md', self.call(data, 'wiki', 'digest', '--local')['citations'])
         result = self.call(self.root / 'absent', 'wiki', 'agent', '--local', stdin='{}')
@@ -118,7 +126,13 @@ class LocalTests(Scenario):
             self.assertEqual(body['model'], '2brain-wiki')
             self.assertEqual(body['reasoning_effort'], 'none')
             self.assertEqual(body['temperature'], 0)
-            self.assertEqual(body['response_format'], {'type': 'json_object'})
+            prompt = json.loads(body['messages'][1]['content'])
+            if 'citation_paths' in prompt:
+                schema = body['response_format']['json_schema']['schema']
+                self.assertEqual(schema['properties']['citations']['items']['enum'], ['wiki/memory.md'])
+                self.assertFalse(schema['additionalProperties'])
+            else:
+                self.assertEqual(body['response_format'], {'type': 'json_object'})
             self.assertNotIn('Authorization', headers)
             self.assertNotIn('do-not-send-this', json.dumps((body, headers)))
 

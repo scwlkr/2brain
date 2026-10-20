@@ -43,6 +43,15 @@ Installed-package verification exposed occasional missing inline narrative
 citations. Local narratives get one correction attempt with the same model and
 evidence, followed by the unchanged strict validator; external agents keep their
 existing one-attempt behavior. Endpoint/JSON transport failures are not retried.
+Narrative contracts enumerate the actual allowed topic paths. This avoids local
+models treating raw-source links or bare topic filenames as citation-array values.
+Local narrative JSON schemas restrict citation values to that same path list;
+hosted requests and compilation/health JSON-object requests are unchanged.
+The local adapter canonicalizes redundant wiki/ and ../wiki/ prefixes on flat
+topic links, then the existing validator still rejects unknown or unsafe targets.
+The local adapter renders missing links for already-declared, supplied citations
+in a Cited pages section, avoiding unreliable model formatting. It does not add
+source IDs or accept paths outside the provided evidence; final validation stays.
 Native Mac terminal checks required PTY draining through exit and reading restored
 attributes from the master after Darwin revokes the slave. Production TUI code is
 unchanged. Personal context, private sources, existing models and scheduling are

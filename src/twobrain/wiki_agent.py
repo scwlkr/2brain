@@ -2,6 +2,7 @@
 import json
 import ipaddress
 import os
+import re
 import sys
 from http.client import HTTPException
 from urllib.error import HTTPError, URLError
@@ -77,6 +78,14 @@ def respond(prompt, local=False):
     if local:
         body['reasoning_effort'] = 'none'
         body['temperature'] = 0
+        if isinstance(prompt, dict) and isinstance(prompt.get('citation_paths'), list):
+            paths = prompt['citation_paths']
+            citations = ({'type': 'array', 'minItems': 1, 'items': {'type': 'string', 'enum': paths}}
+                         if paths else {'type': 'array', 'items': {'type': 'string'}, 'maxItems': 0})
+            body['response_format'] = {'type': 'json_schema', 'json_schema': {
+                'name': 'wiki_narrative', 'strict': True, 'schema': {
+                    'type': 'object', 'properties': {'content': {'type': 'string'}, 'citations': citations},
+                    'required': ['content', 'citations'], 'additionalProperties': False}}}
     else:
         headers['Authorization'] = 'Bearer ' + key
     request = Request(endpoint, data=json.dumps(body).encode(), headers=headers, method='POST')
@@ -99,6 +108,16 @@ def respond(prompt, local=False):
         output = json.loads(choice['message']['content'])
         if not isinstance(output, dict):
             raise ValueError('Expected a JSON object')
+        if local and isinstance(prompt, dict) and isinstance(prompt.get('citation_paths'), list):
+            citations, content = output.get('citations'), output.get('content')
+            if (isinstance(content, str) and content.strip() and isinstance(citations, list)
+                    and all(isinstance(c, str) and c in prompt['citation_paths'] for c in citations)):
+                missing = [c for c in citations if f']({c})' not in content]
+                if missing:
+                    # Render declared, supplied references deterministically;
+                    # never invent a source or accept an out-of-context path.
+                    output['content'] = content.rstrip() + '\n\n## Cited pages\n' + ''.join(
+                        f'- [Wiki source]({citation})\n' for citation in missing)
         if local and isinstance(prompt, dict) and 'pending_sources' in prompt and isinstance(output.get('pages'), dict):
             # The CLI regenerates these from validated topic pages. Some local
             # models helpfully return a duplicate index despite the contract.
@@ -106,6 +125,10 @@ def respond(prompt, local=False):
             # still checks every topic, source, link and revision before writes.
             output['pages'] = {name: content for name, content in output['pages'].items()
                                if name not in {'index.md', 'log.md'}}
+            # Topic pages live inside wiki/, so redundant wiki/ prefixes in
+            # their local links resolve to the same flat topic filename.
+            output['pages'] = {name: re.sub(r'\]\((?:\.\./)?wiki/([a-z0-9][a-z0-9-]{0,99}\.md(?:#[^)]*)?)\)', r'](\1)', content)
+                               if isinstance(content, str) else content for name, content in output['pages'].items()}
         return output
     except HTTPError as exc:
         if local:
