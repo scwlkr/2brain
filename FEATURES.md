@@ -9,4 +9,6 @@
 - Optional agent-managed LLM wiki: immutable raw evidence, linked Markdown topics,
   generated index/log, provenance validation, cited queries/deep dives, inbox
   polling, source gap lint, daily reports and podcast scripts with optional TTS.
+  Local Ollama setup/health and `--local` compilation, cited queries and reports
+  use a loopback JSON adapter without credentials or hosted fallback.
   See [workflow](docs/llm-wiki.md).

@@ -126,13 +126,35 @@ class TerminalBrowser(Scenario):
         return self.until(expected)
 
     def finish(self, key='q'):
+        import errno
+        import select
         import termios
+        import time
         self.send(key, '\x1b[?1049l')
+        # macOS terminal restoration drains output after leaving the alternate
+        # screen. Keep consuming the PTY until the child exits, like a terminal
+        # emulator; waiting first can block its final cursor-restoration write.
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            if select.select([self.master], [], [], 0.05)[0]:
+                try:
+                    chunk = os.read(self.master, 65536)
+                except OSError as exc:
+                    if exc.errno == errno.EIO:  # Linux reports a closed PTY as EIO.
+                        break
+                    raise
+                if not chunk:
+                    break
+                self.output += chunk
+            if self.process.poll() is not None:
+                break
         self.process.wait(timeout=5)
         self.assertEqual(self.process.returncode, 0)
         with self.assertRaises(ProcessLookupError):
             os.killpg(self.process.pid, 0)
-        self.assertEqual(termios.tcgetattr(self.slave), self.before)
+        # Darwin revokes the controlling slave when its session leader exits;
+        # the master still exposes the same terminal settings for this check.
+        self.assertEqual(termios.tcgetattr(self.master), self.before)
         self.assertIn(b'\x1b[?25h', self.output)
 
     def test_open_tui_launches_the_selected_record_and_preserves_context(self):
