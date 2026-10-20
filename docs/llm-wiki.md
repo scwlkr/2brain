@@ -102,7 +102,7 @@ separate adapter that selects evidence within its context budget.
 
 No key or environment setup is needed for the default local installation.
 `--local` uses `http://127.0.0.1:11434/v1/chat/completions`, model `2brain-wiki`,
-JSON-object output and `reasoning_effort="none"`. It ignores all `TWOBRAIN_LLM_*`
+JSON-object output, temperature zero and `reasoning_effort="none"`. It ignores all `TWOBRAIN_LLM_*`
 provider settings and credentials, bypasses HTTP proxies, rejects redirects and
 cloud model names, and never retries with a hosted provider. Ollama cloud features
 must also stay disabled: a custom local alias can otherwise hide a cloud model.
@@ -116,6 +116,9 @@ failures return an error. Captured sources remain pending after failed compilati
 fix the runtime/model and rerun `wiki compile --local`.
 
 Use `ollama ps` during inference to inspect GPU placement and context length.
+For local questions with no lexical matches, the model receives up to five topic
+pages in index order for an overview; this keeps broad questions useful without
+claiming exhaustive retrieval. Ask about a specific concept for focused results.
 Performance depends on model, source size and other applications; setup does not
 claim a throughput target. No scheduler is enabled by these commands.
 

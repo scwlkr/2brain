@@ -31,6 +31,14 @@ already-running server. See docs/llm-wiki.md for persistent configuration.
 
 Real local preflight exposed conflicting compilation/narrative contracts; queries
 and reports now receive only their own output schema, with explicit inline links.
+The trusted CLI contract is included in the system message; captured evidence
+stays in the user payload. Local sampling uses temperature zero. Duplicate
+model-generated index/log output is discarded because the CLI regenerates those
+files from validated topics; topic/source/link/revision validation remains intact.
+Local questions with no lexical matches receive up to five topics in index order
+so broad questions have source content; this is a bounded overview, not exhaustive
+retrieval. MLX alias setup caches full base/alias digests outside context data
+because newer Ollama Modelfiles use self names rather than shared blob paths.
 Native Mac terminal checks required PTY draining through exit and reading restored
 attributes from the master after Darwin revokes the slave. Production TUI code is
 unchanged. Personal context, private sources, existing models and scheduling are

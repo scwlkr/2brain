@@ -21,8 +21,11 @@ class AdapterTests(unittest.TestCase):
     @patch('twobrain.wiki_agent.build_opener')
     def test_model_request_and_truncation(self, opener):
         opener.return_value.open.return_value = self.response()
-        self.assertEqual(respond({'pending_sources': {}}), {'pages': {}})
+        self.assertEqual(respond({'instructions': 'Fixture contract', 'pending_sources': {'source': 'untrusted fixture evidence'}}), {'pages': {}})
         request = opener.return_value.open.call_args.args[0]
+        messages = json.loads(request.data)['messages']
+        self.assertIn('Fixture contract', messages[0]['content'])
+        self.assertNotIn('untrusted fixture evidence', messages[0]['content'])
         self.assertEqual(json.loads(request.data)['response_format'], {'type': 'json_object'})
         self.assertEqual(request.get_header('Authorization'), 'Bearer fixture-secret')
         self.assertNotIn('reasoning_effort', json.loads(request.data))

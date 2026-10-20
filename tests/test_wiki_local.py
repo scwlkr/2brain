@@ -21,11 +21,23 @@ class LocalTests(Scenario):
         super().setUp()
         owner = self
         self.requests = []
+        self.model_tags = {}
         self.mode = 'ok'
 
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *args):
                 pass
+
+            def do_GET(self):
+                if self.path != '/api/tags':
+                    self.send_error(404)
+                    return
+                raw = json.dumps({'models': [{'name': name, 'digest': digest}
+                                              for name, digest in owner.model_tags.items()]}).encode()
+                self.send_response(200)
+                self.send_header('Content-Length', str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
 
             def do_POST(self):
                 body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
@@ -45,6 +57,9 @@ class LocalTests(Scenario):
                     result = {'pages': {'memory.md': '# Memory\n\nUse Markdown memory.\n\n## Sources\n' +
                               '\n'.join(f'- [Source](../raw/{key}.md)' for key in keys) + '\n'},
                               'summary': 'Recorded Markdown memory.', 'sources': keys}
+                    if owner.mode == 'generated-index':
+                        result['pages'].update({'index.md': 'Model-owned index must be discarded',
+                                                'log.md': 'Model-owned log must be discarded'})
                 elif 'context' in prompt:
                     # Conflicting compilation/narrative schemas caused real local models
                     # to return pages instead of a cited answer.
@@ -86,16 +101,21 @@ class LocalTests(Scenario):
 
     def test_local_compile_query_digest_and_agent(self):
         data, key = self.wiki()
+        self.mode = 'generated-index'
         self.call(data, 'wiki', 'compile', '--local')
         self.assertIn(key, (data / 'wiki/memory.md').read_text())
+        self.assertNotIn('Model-owned', (data / 'wiki/index.md').read_text())
+        self.assertNotIn('Model-owned', (data / 'wiki/log.md').read_text())
         self.assertTrue(self.call(data, 'wiki', 'lint')['ok'])
         self.assertIn('wiki/memory.md', self.call(data, 'wiki', 'query', 'memory', '--local')['citations'])
+        self.assertIn('wiki/memory.md', self.call(data, 'wiki', 'query', 'What have we learned?', '--local')['citations'])
         self.assertIn('wiki/memory.md', self.call(data, 'wiki', 'digest', '--local')['citations'])
         result = self.call(self.root / 'absent', 'wiki', 'agent', '--local', stdin='{}')
         self.assertEqual(result, {'ok': True})
         for body, headers in self.requests:
             self.assertEqual(body['model'], '2brain-wiki')
             self.assertEqual(body['reasoning_effort'], 'none')
+            self.assertEqual(body['temperature'], 0)
             self.assertEqual(body['response_format'], {'type': 'json_object'})
             self.assertNotIn('Authorization', headers)
             self.assertNotIn('do-not-send-this', json.dumps((body, headers)))
@@ -163,6 +183,8 @@ class LocalTests(Scenario):
     def test_setup_is_idempotent_and_pins_loopback(self):
         calls = []
         installed = set()
+        alias_context = 32768
+        cache = self.root / 'local-setup-cache.json'
 
         def execute(arguments, **kwargs):
             calls.append((arguments, kwargs))
@@ -170,20 +192,41 @@ class LocalTests(Scenario):
             code, output = 0, ''
             if args[:2] == ['show', '--modelfile']:
                 code = 0 if args[2] in installed else 1
-                output = 'FROM /local/blob\n' + ('PARAMETER num_ctx 32768\n' if args[2] == '2brain-wiki' else '')
+                # MLX reports each model's own name, rather than a shared blob.
+                output = 'FROM ' + args[2] + '\n' + (f'PARAMETER num_ctx {alias_context}\n' if args[2] == '2brain-wiki' else '')
             elif args[0] == 'pull':
                 installed.add(args[1])
+                self.model_tags['qwen3.5:35b'] = 'a' * 64
             elif args[0] == 'create':
                 installed.add(args[1])
+                self.model_tags['2brain-wiki:latest'] = 'b' * 64
                 self.assertEqual(Path(args[3]).read_text(), 'FROM qwen3.5:35b\nPARAMETER num_ctx 32768\n')
             return subprocess.CompletedProcess(arguments, code, output, '')
 
         with patch.dict(os.environ, self.local_env), patch('twobrain.wiki_local.shutil.which', return_value='/bin/ollama'), \
-                patch('twobrain.wiki_local.subprocess.run', side_effect=execute):
+                patch('twobrain.wiki_local.subprocess.run', side_effect=execute), \
+                patch('twobrain.wiki_local.setup_cache', return_value=cache):
+            self.assertTrue(local_run(setup=True)['alias_updated'])
+            self.assertFalse(local_run(setup=True)['alias_updated'])
+            self.assertEqual(sum(args[1] == 'create' for args, _ in calls), 1)
+            self.model_tags['qwen3.5:35b'] = 'c' * 64
+            self.assertTrue(local_run(setup=True)['alias_updated'])
+            self.assertFalse(local_run(setup=True)['alias_updated'])
+            self.model_tags['2brain-wiki:latest'] = 'd' * 64
+            self.assertTrue(local_run(setup=True)['alias_updated'])
+            self.assertFalse(local_run(setup=True)['alias_updated'])
+            alias_context = 8192
+            self.assertTrue(local_run(setup=True)['alias_updated'])
+            alias_context = 32768
+            cache.write_text('{corrupt')
             self.assertTrue(local_run(setup=True)['alias_updated'])
             self.assertFalse(local_run(setup=True)['alias_updated'])
         self.assertEqual(sum(args[1] == 'pull' for args, _ in calls), 1)
-        self.assertEqual(sum(args[1] == 'create' for args, _ in calls), 1)
+        self.assertEqual(sum(args[1] == 'create' for args, _ in calls), 5)
+        record = json.loads(cache.read_text())
+        self.assertEqual(record['base_digest'], 'c' * 64)
+        self.assertEqual(record['alias_digest'], 'b' * 64)
+        self.assertNotIn('do-not-send-this', cache.read_text())
         for _, kwargs in calls:
             self.assertEqual(kwargs['env']['OLLAMA_HOST'], self.local_env['TWOBRAIN_LOCAL_LLM_URL'].removesuffix('/v1/chat/completions'))
             self.assertEqual(kwargs['env']['OLLAMA_NO_CLOUD'], '1')

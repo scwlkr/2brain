@@ -349,6 +349,11 @@ def run(root, args):
         return compile_wiki(root, command, args.file, args.base)
     if action == "query":
         context = query(root, args.question, args.page)
+        if getattr(args, 'local', False) and args.question and not args.page and not context['matches']:
+            context['matches'] = [{'path': f'wiki/{name}', 'content': body}
+                                  for name, body in list(pages(root).items())[:5]]
+        if getattr(args, 'local', False):
+            context.pop('message', None)  # Retrieval advice is not source evidence.
         if command:
             return narrative(root, command, context, "Answer the question as a grounded deep dive.")
         return context
