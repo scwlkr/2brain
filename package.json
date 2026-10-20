@@ -10,7 +10,9 @@
     "src/twobrain/",
     "2brain",
     "pyproject.toml",
-    "README.md"
+    "README.md",
+    "docs/llm-wiki.md",
+    "skills/wiki-lint/SKILL.md"
   ],
   "scripts": {
     "prepack": "node scripts/clean-pack-artifacts.mjs",

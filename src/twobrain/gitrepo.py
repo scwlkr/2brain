@@ -1,13 +1,14 @@
 """Git history and conservative synchronization; no force/reset/stash operations."""
 
 import os
+import re
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from .errors import BrainError
-from .records import validate_all
+from .records import safe_path, validate_all
 
 
 def git(root, *args, check=True, network=False):
@@ -76,7 +77,11 @@ def dirty(root):
 
 def allowed_file(name):
     parts = Path(name).parts
-    return name in {"general.json", ".gitattributes", "README.md"} or (
+    wiki_file = len(parts) == 2 and (
+        (parts[0] == "raw" and (parts[1] == "README.md" or re.fullmatch(r"[0-9a-f]{64}\.md", parts[1])))
+        or (parts[0] == "wiki" and (parts[1] in {"state.json", "AGENTS.md"}
+                                    or re.fullmatch(r"[a-z0-9][a-z0-9-]{0,99}\.md", parts[1]))))
+    return wiki_file or name in {"general.json", ".gitattributes", "README.md"} or (
         len(parts) == 2 and parts[0] == "tools" and parts[1].endswith(".json")) or (
         len(parts) == 3 and parts[0] == "projects" and parts[2].endswith(".json"))
 
@@ -87,6 +92,8 @@ def check_files(root):
     if extra:
         raise BrainError(f"Context repository contains non-record files: {', '.join(extra)}. Move them out before saving/syncing; all files are preserved.")
     for name in names:
+        if name:
+            safe_path(root, Path(name))
         if name and (root / name).is_symlink():
             raise BrainError(f"Symlinked context files are unsupported: {name}")
 
@@ -104,6 +111,8 @@ def commit(root, reason, relative=None):
     validate_all(root)
     check_files(root)
     identity(root)
+    from .wiki import validate_checkpoint
+    validate_checkpoint(root)
     if dirty(root) or pending_merge(root):
         if relative is None:
             git(root, "add", "-A", "--", ".")
