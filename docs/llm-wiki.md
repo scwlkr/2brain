@@ -114,6 +114,9 @@ accepted. `2brain wiki agent --local` exposes the same adapter to external tools
 Missing runtime, stopped daemon, missing alias, malformed JSON and inference
 failures return an error. Captured sources remain pending after failed compilation;
 fix the runtime/model and rerun `wiki compile --local`.
+If a local narrative omits required citations or uses an invalid response shape,
+the same local model gets one correction attempt. The corrected result must pass
+the same validation; a second failure returns an error without changing wiki data.
 
 Use `ollama ps` during inference to inspect GPU placement and context length.
 For local questions with no lexical matches, the model receives up to five topic

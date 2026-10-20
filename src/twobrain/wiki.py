@@ -426,11 +426,25 @@ def validate_checkpoint(root):
 
 
 def narrative(root, command, context, task):
-    result = agent(command, {"instructions": GUIDANCE + "\n" + task +
+    prompt = {"instructions": GUIDANCE + "\n" + task +
                    '\nReturn JSON with exactly two keys: {"content":"Markdown with [page](wiki/page.md) citations", "citations":["wiki/page.md"]}. '
                    'Do not copy context metadata keys into the result. Every declared citation must also appear '
                    'as an inline Markdown link in content, using the exact wiki/filename.md path. '
-                   'Cite only supplied wiki pages. If evidence is absent, state that explicitly.', "context": context})
+                   'Cite only supplied wiki pages. If evidence is absent, state that explicitly.', "context": context}
+    result = agent(command, prompt)
+    try:
+        return validate_narrative(root, result, context)
+    except BrainError as exc:
+        if not callable(command):
+            raise
+        # Local models occasionally omit a declared inline link. Give the same
+        # model one correction attempt, then enforce the same strict validator.
+        prompt['instructions'] += '\nCorrect the previous response: ' + str(exc)
+        prompt['previous_result'] = result
+        return validate_narrative(root, agent(command, prompt), context)
+
+
+def validate_narrative(root, result, context):
     if not isinstance(result, dict) or set(result) != {"content", "citations"}:
         raise BrainError("Narrative agent requires content and citations.")
     check_text(result["content"], 100000, "narrative", multiline=True)

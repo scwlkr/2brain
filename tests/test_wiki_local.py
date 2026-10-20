@@ -67,6 +67,8 @@ class LocalTests(Scenario):
                         result = {'pages': {}, 'summary': 'Wrong task', 'sources': []}
                     else:
                         result = {'content': 'Use Markdown. [Memory](wiki/memory.md)', 'citations': ['wiki/memory.md']}
+                    if owner.mode == 'citation-repair-fails' or (owner.mode == 'citation-repair' and 'previous_result' not in prompt):
+                        result = {'content': 'Use Markdown.', 'citations': ['wiki/memory.md']}
                 else:
                     result = {'ok': True}
                 response = {'choices': [{'finish_reason': 'length' if owner.mode == 'truncated' else 'stop',
@@ -131,6 +133,23 @@ class LocalTests(Scenario):
             self.assertEqual(self.git(data, 'rev-parse', 'HEAD'), revision)
             self.assertEqual((data / f'raw/{key}.md').read_bytes(), original)
         self.assertEqual(len(self.requests), 4)
+        self.assertFalse(self.call(data, 'status')['dirty'])
+
+    def test_local_narrative_repair_is_bounded_and_still_validated(self):
+        data, _ = self.wiki()
+        self.call(data, 'wiki', 'compile', '--local')
+        revision = self.git(data, 'rev-parse', 'HEAD')
+        self.requests.clear()
+        self.mode = 'citation-repair'
+        result = self.call(data, 'wiki', 'query', 'What have we learned?', '--local')
+        self.assertIn('](wiki/memory.md)', result['content'])
+        self.assertEqual(len(self.requests), 2)
+        repair = json.loads(self.requests[1][0]['messages'][1]['content'])
+        self.assertIn('previous_result', repair)
+        self.mode = 'citation-repair-fails'
+        self.call(data, 'wiki', 'digest', '--local', expect=1)
+        self.assertEqual(len(self.requests), 4)
+        self.assertEqual(self.git(data, 'rev-parse', 'HEAD'), revision)
         self.assertFalse(self.call(data, 'status')['dirty'])
 
     def test_local_cycle_and_mutually_exclusive_flags(self):

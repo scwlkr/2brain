@@ -39,6 +39,10 @@ Local questions with no lexical matches receive up to five topics in index order
 so broad questions have source content; this is a bounded overview, not exhaustive
 retrieval. MLX alias setup caches full base/alias digests outside context data
 because newer Ollama Modelfiles use self names rather than shared blob paths.
+Installed-package verification exposed occasional missing inline narrative
+citations. Local narratives get one correction attempt with the same model and
+evidence, followed by the unchanged strict validator; external agents keep their
+existing one-attempt behavior. Endpoint/JSON transport failures are not retried.
 Native Mac terminal checks required PTY draining through exit and reading restored
 attributes from the master after Darwin revokes the slave. Production TUI code is
 unchanged. Personal context, private sources, existing models and scheduling are
