@@ -74,6 +74,19 @@ local secret environment. Optionally set `TWOBRAIN_LLM_URL`; it defaults to
 cron arguments, wiki pages or a Git remote URL. Invoking the adapter sends the
 bundle to that provider and incurs its normal usage charges.
 
+Check local configuration before sending any source text:
+
+```sh
+2brain wiki agent --check
+2brain wiki agent --check --json
+```
+
+The check works before context initialization, does not read stdin, makes no
+network request and prints no configuration values. Missing variable names or
+invalid endpoint/token formatting produce a nonzero exit. `ready: true` means
+only local configuration passed; it does not verify authentication, model
+availability, JSON output support or quota. Model names are provider-specific.
+
 ```sh
 2brain wiki compile --agent '2brain wiki agent'
 2brain wiki query 'Explain our architecture' --agent '2brain wiki agent'
@@ -84,6 +97,23 @@ The provider must support `response_format: {"type":"json_object"}` and return a
 complete response. Truncation, malformed JSON, redirects and HTTP failures abort
 compilation without marking pending evidence complete. No credentials are needed
 for offline reads, manual compilation or a different local agent command.
+
+If compilation reports an agent failure, pending captures remain available.
+Run `2brain wiki agent --check` first. To inspect a provider failure directly,
+emit a bundle to a private local file and invoke the adapter yourself:
+
+```sh
+2brain wiki compile --json > /absolute/private-bundle.json
+2brain wiki agent < /absolute/private-bundle.json > /absolute/private-result.json
+```
+
+The second command contacts your provider and may incur charges. HTTP 401 points
+to the API key, 403 to model permissions, 404 to the endpoint/model, and 429 to
+quota or rate limits. Errors omit provider bodies and configuration values.
+External agent stderr is not replayed by compile/cycle because it may contain
+private text; run your adapter directly to see its diagnostics. After correcting
+the configuration, rerun compile or cycle; unchanged exports are not duplicated.
+Delete temporary bundle/result files when finished; they can contain source text.
 
 ## Bring your own model
 

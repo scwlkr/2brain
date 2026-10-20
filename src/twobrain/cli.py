@@ -41,7 +41,8 @@ def parser():
     actions = result.add_subparsers(dest="action")
     wiki = actions.add_parser("wiki", help="agent-managed, source-grounded Markdown memory")
     wiki_actions = wiki.add_subparsers(dest="wiki_action", required=True)
-    wiki_actions.add_parser("agent", help="JSON model adapter (TWOBRAIN_LLM_URL, MODEL, API_KEY)")
+    model_agent = wiki_actions.add_parser("agent", help="JSON model adapter (TWOBRAIN_LLM_URL, MODEL, API_KEY)")
+    model_agent.add_argument("--check", action="store_true", help="validate local model configuration without stdin or networking")
     wiki_actions.add_parser("init", help="initialize raw/ and wiki/ in local context")
     ingest = wiki_actions.add_parser("ingest", help="capture an immutable UTF-8 source")
     ingest.add_argument("--file", required=True)
@@ -155,7 +156,9 @@ def run(root, args):
     if args.action == "setup":
         return setup(root, args.repository, args.codex)
     if args.action == "wiki" and args.wiki_action == "agent":
-        from .wiki_agent import main as agent_main
+        from .wiki_agent import main as agent_main, check_configuration
+        if args.check:
+            return check_configuration()
         code = agent_main()
         if code:
             raise BrainError("JSON model adapter failed; see stderr.")

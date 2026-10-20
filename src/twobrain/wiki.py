@@ -243,7 +243,10 @@ def agent(command, prompt):
     except (ValueError, subprocess.TimeoutExpired) as exc:
         raise BrainError(f"Agent command failed: {exc}") from exc
     if result.returncode:
-        raise BrainError(f"Agent exited {result.returncode}; wiki was not compiled. Inspect your agent locally.")
+        raise BrainError(f"Agent exited {result.returncode}; no agent result applied. "
+                         "Run the agent command directly with the input bundle to diagnose it. "
+                         "For the included model adapter, first run 2brain wiki agent --check. "
+                         "Pending captures are retained for retry.")
     if len(result.stdout.encode()) > 10 * LIMIT:
         raise BrainError("Agent output exceeds 20 MiB.")
     try:

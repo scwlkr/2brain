@@ -14,15 +14,41 @@ class NoRedirect(HTTPRedirectHandler):
         raise BrainError("Model endpoint redirected; configure its final URL explicitly.")
 
 
-def respond(prompt):
+def configuration():
+    """Validate locally without reading stdin, contacting a provider or exposing values."""
     endpoint = os.environ.get('TWOBRAIN_LLM_URL', 'https://api.openai.com/v1/chat/completions')
-    model = os.environ.get('TWOBRAIN_LLM_MODEL')
-    key = os.environ.get('TWOBRAIN_LLM_API_KEY')
-    url = urlsplit(endpoint)
-    if (url.scheme != 'https' or url.username or url.password or url.query or url.fragment):
-        raise BrainError('TWOBRAIN_LLM_URL must be an HTTPS chat-completions URL without credentials or query parameters.')
-    if not model or not key:
-        raise BrainError('Configure TWOBRAIN_LLM_MODEL and TWOBRAIN_LLM_API_KEY for the JSON model adapter.')
+    model = os.environ.get('TWOBRAIN_LLM_MODEL', '')
+    key = os.environ.get('TWOBRAIN_LLM_API_KEY', '')
+    try:
+        url = urlsplit(endpoint)
+        valid_url = (url.scheme == 'https' and url.hostname and url.username is None
+                     and url.password is None and not url.query and not url.fragment
+                     and url.port != 0 and not any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in endpoint))
+    except ValueError:
+        valid_url = False
+    if not valid_url:
+        raise BrainError('TWOBRAIN_LLM_URL must be an HTTPS chat-completions URL with a host, '
+                         'a valid port, and no credentials, whitespace or query parameters.')
+    missing = [name for name, value in [('TWOBRAIN_LLM_MODEL', model), ('TWOBRAIN_LLM_API_KEY', key)]
+               if not value.strip()]
+    if missing:
+        raise BrainError('Configure ' + ' and '.join(missing) + ' in your local secret environment. '
+                         'Then run 2brain wiki agent --check; it makes no provider request.')
+    if any(ord(c) < 32 or ord(c) == 127 for c in model):
+        raise BrainError('TWOBRAIN_LLM_MODEL must not contain control characters.')
+    if not key.isascii() or any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in key):
+        raise BrainError('TWOBRAIN_LLM_API_KEY must be an ASCII token without whitespace or control characters.')
+    return endpoint, model, key
+
+
+def check_configuration():
+    configuration()
+    return {'ready': True, 'network_checked': False,
+            'message': 'Local model configuration is valid. Provider access, model support and quota are unverified.'}
+
+
+def respond(prompt):
+    endpoint, model, key = configuration()
     request = Request(endpoint, data=json.dumps({
         'model': model,
         'messages': [
@@ -46,9 +72,16 @@ def respond(prompt):
             raise ValueError('Expected a JSON object')
         return output
     except HTTPError as exc:
-        raise BrainError(f'Model endpoint returned HTTP {exc.code}; check provider access and model configuration.') from exc
+        advice = {401: 'check TWOBRAIN_LLM_API_KEY',
+                  403: 'check provider permissions and model access',
+                  404: 'check TWOBRAIN_LLM_URL and TWOBRAIN_LLM_MODEL',
+                  429: 'check provider quota or rate limits and retry later'}.get(
+                      exc.code, 'check provider access, model configuration and JSON-object output support')
+        raise BrainError(f'Model endpoint returned HTTP {exc.code}; {advice}.') from exc
     except URLError as exc:
         raise BrainError('Model endpoint unavailable; check network and TLS configuration.') from exc
+    except (TimeoutError, OSError) as exc:
+        raise BrainError('Model request failed or timed out; check network and TLS configuration, then retry.') from exc
     except (ValueError, KeyError, IndexError, TypeError) as exc:
         raise BrainError('Model endpoint did not return a complete JSON chat-completions result.') from exc
 
