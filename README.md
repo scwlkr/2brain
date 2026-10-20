@@ -225,3 +225,30 @@ python3 project check
 ```
 
 Local tests exercise selective concise reads, no-Git offline reads, JSON, explicit updates/reverts, editor subprocesses, draft validation/recovery, concurrent-edit protection, two-copy merges over a user-owned bare remote (no GitHub), conflicts, aborted-resolution recovery, failed fetch/push preservation, a standalone archive, and safe repeatable Codex setup. The bare-remote sync smoke is `test_sync_over_user_owned_bare_remote_without_github` in `tests/test_sync.py`. The runner also checks TypeScript and native OpenTUI behavior. Editor tests use a controlled child process; real VS Code interaction requires a native smoke check. No hosted CI is required. The current OpenTUI implementation is verified on Linux; native macOS and Windows execution remains unqualified.
+
+## Agent-managed LLM wiki
+
+Add a portable Karpathy-style knowledge layer alongside your context records:
+
+```sh
+2brain wiki init
+2brain wiki ingest --file notes.md --origin 'meeting:planning'
+2brain wiki compile --json > bundle.json
+# Give the bundle to your agent; apply its JSON with the bundle's base_revision:
+2brain wiki compile --file result.json --base <base_revision>
+2brain wiki query 'What have we learned?'
+2brain wiki lint
+2brain wiki digest --podcast
+```
+
+Immutable `raw/` evidence, linked Markdown in `wiki/`, generated index/log,
+provenance checks and ordinary Git sync. Open the data folder in Obsidian.
+`wiki compile --agent <json-agent>` runs your chosen model; `wiki cycle` polls an
+export inbox for recurring ingestion. Cited deep dives, daily reports and optional
+TTS audio use the same adapter contract. Reads stay offline.
+
+See the [complete workflow, agent protocol and scheduling guide](docs/llm-wiki.md)
+and the [periodic lint skill](skills/wiki-lint/SKILL.md). Source account exporters,
+narration commands are supplied by you; the included `wiki agent` adapter supports
+OpenAI-compatible model endpoints. No credentials or
+hosted services are bundled. Plain files remain yours.

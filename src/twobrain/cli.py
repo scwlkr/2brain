@@ -39,6 +39,33 @@ def parser():
     views.add_argument("--project", metavar="OWNER/REPO")
     views.add_argument("--list", action="store_true", help="list names without loading records")
     actions = result.add_subparsers(dest="action")
+    wiki = actions.add_parser("wiki", help="agent-managed, source-grounded Markdown memory")
+    wiki_actions = wiki.add_subparsers(dest="wiki_action", required=True)
+    wiki_actions.add_parser("agent", help="JSON model adapter (TWOBRAIN_LLM_URL, MODEL, API_KEY)")
+    wiki_actions.add_parser("init", help="initialize raw/ and wiki/ in local context")
+    ingest = wiki_actions.add_parser("ingest", help="capture an immutable UTF-8 source")
+    ingest.add_argument("--file", required=True)
+    ingest.add_argument("--title")
+    ingest.add_argument("--origin", help="source URL or provenance label (never fetched)")
+    compile_command = wiki_actions.add_parser("compile", help="emit a bundle or compile using a JSON agent")
+    compiler = compile_command.add_mutually_exclusive_group()
+    compiler.add_argument("--agent", help="command receiving bundle JSON on stdin, returning compilation JSON")
+    compiler.add_argument("--file", help="apply a compilation JSON file")
+    compile_command.add_argument("--base", help="bundle base_revision required with --file")
+    query_command = wiki_actions.add_parser("query", help="read index first and retrieve relevant cited pages")
+    query_command.add_argument("question", nargs="?")
+    query_command.add_argument("--agent", help="produce a cited deep dive with a JSON agent command")
+    query_command.add_argument("--page", help="read an exact page filename")
+    wiki_actions.add_parser("lint", help="check evidence integrity, links, index and gaps")
+    digest = wiki_actions.add_parser("digest", help="produce a daily Markdown report or podcast script")
+    digest.add_argument("--agent", help="generate a narrative report or podcast script from updates")
+    digest.add_argument("--tts", help="optional narrator command: script on stdin, audio bytes on stdout")
+    digest.add_argument("--audio", type=Path, help="new audio output file outside the context repository")
+    digest.add_argument("--since", help="inclusive ISO date (default: today UTC)")
+    digest.add_argument("--podcast", action="store_true", help="emit a script for a narrator or TTS tool")
+    cycle = wiki_actions.add_parser("cycle", help="poll exported sources, compile pending evidence, then lint")
+    cycle.add_argument("--inbox", required=True, type=Path)
+    cycle.add_argument("--agent", required=True)
     browser = actions.add_parser("tui", help="browse and edit local context in the OpenTUI interface")
     browser.add_argument("--theme", choices=["dark", "light"], default=argparse.SUPPRESS, help="brand theme (default: dark)")
     browser.add_argument("--setup", action="store_true", help="install and verify the pinned OpenTUI runtime without opening the UI")
@@ -127,7 +154,16 @@ def run(root, args):
         return operations.initialize(root, args.remote, args.seed.expanduser().absolute() if args.seed else None)
     if args.action == "setup":
         return setup(root, args.repository, args.codex)
+    if args.action == "wiki" and args.wiki_action == "agent":
+        from .wiki_agent import main as agent_main
+        code = agent_main()
+        if code:
+            raise BrainError("JSON model adapter failed; see stderr.")
+        return None
     require_repository(root)
+    if args.action == "wiki":
+        from .wiki import run as run_wiki
+        return run_wiki(root, args)
     kind, name = selected(args)
     if args.action == "history":
         if not 1 <= args.limit <= 100:
@@ -169,6 +205,12 @@ def render_record(title, record):
 
 
 def render(value):
+    if "content" in value:
+        return value["content"]
+    if "pending_sources" in value:
+        return json.dumps(value, ensure_ascii=False, indent=2)
+    if "matches" in value:
+        return value["index"] + "\n" + "\n".join(f"{item['path']}\n{item['content']}" for item in value["matches"]) + "\n" + value["message"]
     if "brand" in value and "palette" in value:
         return "\n".join(["2brain brand", *[f"{name}: {color}" for name, color in value["palette"].items()],
                           value["export"], value["reference"]])
