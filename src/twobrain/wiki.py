@@ -430,7 +430,11 @@ def narrative(root, command, context, task):
                    '\nReturn JSON with exactly two keys: {"content":"Markdown with [page](wiki/page.md) citations", "citations":["wiki/page.md"]}. '
                    'Do not copy context metadata keys into the result. Every declared citation must also appear '
                    'as an inline Markdown link in content, using the exact wiki/filename.md path. '
-                   'Cite only supplied wiki pages. If evidence is absent, state that explicitly.', "context": context}
+                   'Cite only supplied wiki pages. If evidence is absent, state that explicitly. '
+                   'The citations array may contain only these exact paths: ' + json.dumps(sorted(narrative_paths(root, context))) +
+                   '. Never put raw source paths, source IDs, index.md or log.md in the citations array. '
+                   'Raw evidence links may appear in content alongside the required wiki links.',
+              "citation_paths": sorted(narrative_paths(root, context)), "context": context}
     result = agent(command, prompt)
     try:
         return validate_narrative(root, result, context)
@@ -444,16 +448,21 @@ def narrative(root, command, context, task):
         return validate_narrative(root, agent(command, prompt), context)
 
 
-def validate_narrative(root, result, context):
-    if not isinstance(result, dict) or set(result) != {"content", "citations"}:
-        raise BrainError("Narrative agent requires content and citations.")
-    check_text(result["content"], 100000, "narrative", multiline=True)
-    citations = result["citations"]
+def narrative_paths(root, context):
     available = {f"wiki/{name}" for name in pages(root)}
     if isinstance(context.get("matches"), list):
         available &= {item["path"] for item in context["matches"]}
     elif context.get("path"):
         available &= {context["path"]}
+    return available
+
+
+def validate_narrative(root, result, context):
+    if not isinstance(result, dict) or set(result) != {"content", "citations"}:
+        raise BrainError("Narrative agent requires content and citations.")
+    check_text(result["content"], 100000, "narrative", multiline=True)
+    citations = result["citations"]
+    available = narrative_paths(root, context)
     if not isinstance(citations, list) or any(not isinstance(c, str) or c not in available for c in citations):
         raise BrainError("Narrative cites pages outside supplied evidence.")
     if available and not citations:
